@@ -29,6 +29,7 @@ FINT_LOG_COMPILER = $(srcdir)/script/fint-log-compiler.sh
 INT_LOG_FLAGS = $(INTEGRATION_TCTI)
 FINT_LOG_FLAGS = $(INTEGRATION_TCTI)
 EXTRA_DIST += $(srcdir)/script/int-log-compiler.sh \
+              $(srcdir)/script/int-log-compiler-wolftpm.sh \
               $(srcdir)/script/fint-log-compiler.sh \
               $(srcdir)/script/int-log-compiler-common.sh \
               $(srcdir)/script/ekca/create_ca.sh \
@@ -111,6 +112,10 @@ TESTS_UNIT  = \
     test/unit/TPML-marshal \
     test/unit/TPMT-marshal \
     test/unit/TPMU-marshal \
+    test/unit/pqc-marshal \
+    test/unit/sys-pqc-prepare \
+    test/unit/v183-v184-marshal \
+    test/unit/sys-v183-v184-prepare \
     test/unit/sys-execute \
     test/unit/dlopen_tss2_rc \
     test/unit/tss2_rc
@@ -217,6 +222,7 @@ TESTS_INTEGRATION += \
     test/integration/sys-mac.int \
     test/integration/sys-hmac.int \
     test/integration/sys-ecc-encrypt-decrypt.int \
+    test/integration/sys-pqc-wolftpm.int \
     test/tpmclient/tpmclient.int
 endif # !TESTDEVICE
 
@@ -769,6 +775,26 @@ test_unit_TPMU_marshal_LDADD   = $(CMOCKA_LIBS) $(libtss2_mu)
 test_unit_TPMU_marshal_SOURCES = test/unit/TPMU-marshal.c \
     test/helper/cmocka_all.h
 
+test_unit_pqc_marshal_CFLAGS  = $(CMOCKA_CFLAGS) $(TESTS_CFLAGS)
+test_unit_pqc_marshal_LDADD   = $(CMOCKA_LIBS) $(libtss2_mu)
+test_unit_pqc_marshal_SOURCES = test/unit/pqc-marshal.c \
+    test/helper/cmocka_all.h
+
+test_unit_sys_pqc_prepare_CFLAGS  = $(CMOCKA_CFLAGS) $(TESTS_CFLAGS)
+test_unit_sys_pqc_prepare_LDADD   = $(CMOCKA_LIBS) $(libtss2_mu) $(libtss2_sys)
+test_unit_sys_pqc_prepare_SOURCES = test/unit/sys-pqc-prepare.c \
+    test/helper/cmocka_all.h
+
+test_unit_v183_v184_marshal_CFLAGS  = $(CMOCKA_CFLAGS) $(TESTS_CFLAGS)
+test_unit_v183_v184_marshal_LDADD   = $(CMOCKA_LIBS) $(libtss2_mu)
+test_unit_v183_v184_marshal_SOURCES = test/unit/v183-v184-marshal.c \
+    test/helper/cmocka_all.h
+
+test_unit_sys_v183_v184_prepare_CFLAGS  = $(CMOCKA_CFLAGS) $(TESTS_CFLAGS)
+test_unit_sys_v183_v184_prepare_LDADD   = $(CMOCKA_LIBS) $(libtss2_mu) $(libtss2_sys)
+test_unit_sys_v183_v184_prepare_SOURCES = test/unit/sys-v183-v184-prepare.c \
+    test/helper/cmocka_all.h
+
 test_unit_sys_execute_CFLAGS  = $(CMOCKA_CFLAGS) $(TESTS_CFLAGS)
 test_unit_sys_execute_LDADD   = $(CMOCKA_LIBS) $(libtss2_mu) $(libtss2_sys)
 test_unit_sys_execute_SOURCES = test/unit/sys-execute.c \
@@ -1287,6 +1313,14 @@ test_integration_sys_ecc_encrypt_decrypt_int_CFLAGS  = $(AM_CFLAGS) $(TESTS_CFLA
 test_integration_sys_ecc_encrypt_decrypt_int_LDADD   = $(TESTS_LDADD)
 test_integration_sys_ecc_encrypt_decrypt_int_SOURCES = \
     test/integration/sys-ecc-encrypt-decrypt.int.c test/integration/main-sys.c
+
+test_integration_sys_pqc_wolftpm_int_LOG_COMPILER = $(srcdir)/script/int-log-compiler-wolftpm.sh
+test_integration_sys_pqc_wolftpm_int_CFLAGS  = $(AM_CFLAGS) $(TESTS_CFLAGS)
+test_integration_sys_pqc_wolftpm_int_LDADD   = $(TESTS_LDADD)
+test_integration_sys_pqc_wolftpm_int_SOURCES = \
+    test/integration/sys-pqc-wolftpm.int.c test/integration/main-sys-wolftpm.c
+test/integration/sys-pqc-wolftpm.int.log: INT_LOG_COMPILE = \
+    $(test_integration_sys_pqc_wolftpm_int_LOG_COMPILER) $(AM_INT_LOG_FLAGS) $(INT_LOG_FLAGS)
 
 if ESYS
 ESYS_SRC_UTIL_CRYPTO_SRC = src/tss2-esys/esys_iutil.c \

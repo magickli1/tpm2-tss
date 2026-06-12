@@ -277,7 +277,23 @@ GetNumHandles(TPM2_CC commandCode, bool req) {
                                                     { TPM2_CC_ACT_SetTimeout, 1, 0 },
                                                     { TPM2_CC_CertifyX509, 2, 0 },
                                                     { TPM2_CC_ECC_Encrypt, 1, 0 },
-                                                    { TPM2_CC_ECC_Decrypt, 1, 0 } };
+                                                    { TPM2_CC_ECC_Decrypt, 1, 0 },
+                                                    { TPM2_CC_PolicyCapability, 1, 0 },
+                                                    { TPM2_CC_PolicyParameters, 1, 0 },
+                                                    { TPM2_CC_NV_DefineSpace2, 1, 0 },
+                                                    { TPM2_CC_NV_ReadPublic2, 1, 0 },
+                                                    { TPM2_CC_SetCapability, 1, 0 },
+                                                    { TPM2_CC_ReadOnlyControl, 1, 0 },
+                                                    { TPM2_CC_PolicyTransportSPDM, 1, 0 },
+                                                    { TPM2_CC_Encapsulate, 1, 0 },
+                                                    { TPM2_CC_Decapsulate, 1, 0 },
+                                                    { TPM2_CC_SignDigest, 1, 0 },
+                                                    { TPM2_CC_VerifyDigestSignature, 1, 0 },
+                                                    { TPM2_CC_SignVerifySequenceStart, 1, 1 },
+                                                    { TPM2_CC_SignSequenceStart, 1, 1 },
+                                                    { TPM2_CC_VerifySequenceStart, 1, 1 },
+                                                    { TPM2_CC_SignSequenceComplete, 2, 0 },
+                                                    { TPM2_CC_VerifySequenceComplete, 2, 0 } };
 
     size_t i;
 
@@ -370,6 +386,35 @@ ValidateNV_Public(const TPM2B_NV_PUBLIC *nv_public_info) {
 
     if (IsAlgorithmWeak(nv_public->nameAlg, 0))
         return TSS2_SYS_RC_BAD_VALUE;
+
+    return TSS2_RC_SUCCESS;
+}
+
+TSS2_RC
+ValidateNV_Public2(const TPM2B_NV_PUBLIC_2 *nv_public_info) {
+    const TPMT_NV_PUBLIC_2 *nv_public;
+
+    if (!nv_public_info)
+        return TSS2_RC_SUCCESS;
+
+    nv_public = &nv_public_info->nvPublic;
+
+    switch (nv_public->handleType) {
+    case TPM2_HT_NV_INDEX:
+        if (IsAlgorithmWeak(nv_public->publicArea.nvIndex.nameAlg, 0))
+            return TSS2_SYS_RC_BAD_VALUE;
+        break;
+    case TPM2_HT_EXTERNAL_NV:
+        if (IsAlgorithmWeak(nv_public->publicArea.externalNV.nameAlg, 0))
+            return TSS2_SYS_RC_BAD_VALUE;
+        break;
+    case TPM2_HT_PERMANENT_NV:
+        if (IsAlgorithmWeak(nv_public->publicArea.permanentNV.nameAlg, 0))
+            return TSS2_SYS_RC_BAD_VALUE;
+        break;
+    default:
+        break;
+    }
 
     return TSS2_RC_SUCCESS;
 }

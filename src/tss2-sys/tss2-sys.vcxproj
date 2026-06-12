@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -185,6 +185,21 @@
     <ClCompile Include="api\Tss2_Sys_ZGen_2Phase.c" />
     <ClCompile Include="api\Tss2_Sys_ECC_Encrypt.c" />
     <ClCompile Include="api\Tss2_Sys_ECC_Decrypt.c" />
+    <ClCompile Include="api\Tss2_Sys_PolicyTransportSPDM.c" />
+    <ClCompile Include="api\Tss2_Sys_ReadOnlyControl.c" />
+    <ClCompile Include="api\Tss2_Sys_SetCapability.c" />
+    <ClCompile Include="api\Tss2_Sys_NV_ReadPublic2.c" />
+    <ClCompile Include="api\Tss2_Sys_NV_DefineSpace2.c" />
+    <ClCompile Include="api\Tss2_Sys_PolicyParameters.c" />
+    <ClCompile Include="api\Tss2_Sys_PolicyCapability.c" />
+    <ClCompile Include="api\Tss2_Sys_Encapsulate.c" />
+    <ClCompile Include="api\Tss2_Sys_Decapsulate.c" />
+    <ClCompile Include="api\Tss2_Sys_SignDigest.c" />
+    <ClCompile Include="api\Tss2_Sys_VerifyDigestSignature.c" />
+    <ClCompile Include="api\Tss2_Sys_SignSequenceStart.c" />
+    <ClCompile Include="api\Tss2_Sys_VerifySequenceStart.c" />
+    <ClCompile Include="api\Tss2_Sys_SignSequenceComplete.c" />
+    <ClCompile Include="api\Tss2_Sys_VerifySequenceComplete.c" />
     <ClCompile Include="sysapi_util.c" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

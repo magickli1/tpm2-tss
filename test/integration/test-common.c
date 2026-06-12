@@ -245,7 +245,18 @@ pcr16_empty(TSS2_SYS_CONTEXT *sys_ctx) {
     return EXIT_SUCCESS;
 }
 
-int
+static int dumpstate(TSS2_SYS_CONTEXT *sys_ctx, tpm_state *state_first, bool compare);
+
+static int
+maybe_dumpstate(TSS2_SYS_CONTEXT *sys_ctx, tpm_state *state_first, bool compare) {
+    if (getenv("FWTPM_SKIP_STATE_CHECKS") != NULL) {
+        LOG_INFO("Skipping TPM capability dump/compare (FWTPM_SKIP_STATE_CHECKS)");
+        return EXIT_SUCCESS;
+    }
+    return dumpstate(sys_ctx, state_first, compare);
+}
+
+static int
 dumpstate(TSS2_SYS_CONTEXT *sys_ctx, tpm_state *state_first, bool compare) {
     TSS2_RC               rc;
     tpm_state             state_second;
@@ -383,7 +394,7 @@ test_sys_checks_pre(TSS2_TEST_SYS_CONTEXT *test_ctx) {
     }
 
     LOG_DEBUG("Running System API pre-test checks: dump capabilities");
-    ret = dumpstate(test_ctx->sys_ctx, test_ctx->tpm_state, 0);
+    ret = maybe_dumpstate(test_ctx->sys_ctx, test_ctx->tpm_state, 0);
     if (ret != EXIT_SUCCESS) {
         LOG_ERROR("Error while dumping TPM state.");
         return ret;
@@ -411,7 +422,7 @@ test_sys_checks_post(TSS2_TEST_SYS_CONTEXT *test_ctx) {
     }
 
     LOG_DEBUG("Running System API post-test checks: dump capabilities");
-    ret = dumpstate(test_ctx->sys_ctx, test_ctx->tpm_state, 1);
+    ret = maybe_dumpstate(test_ctx->sys_ctx, test_ctx->tpm_state, 1);
     if (ret != EXIT_SUCCESS) {
         LOG_ERROR("Error while performing TPM state checks.");
         return ret;

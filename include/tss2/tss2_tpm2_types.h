@@ -43,6 +43,32 @@
 #define TPM2_MAX_SYM_KEY_BYTES  32
 #define TPM2_MAX_RSA_KEY_BYTES  512
 
+/* ML-DSA Size Constants */
+#define TPM2_MLDSA_PRIVATE_KEY_SEED_SIZE 32
+#define TPM2_MLDSA_44_PUB_SIZE           1312 /* ML-DSA-44 public key */
+#define TPM2_MLDSA_44_SIG_SIZE           2420 /* ML-DSA-44 signature */
+#define TPM2_MLDSA_65_PUB_SIZE           1952 /* ML-DSA-65 public key */
+#define TPM2_MLDSA_65_SIG_SIZE           3309 /* ML-DSA-65 signature */
+#define TPM2_MLDSA_87_PUB_SIZE           2592 /* ML-DSA-87 public key */
+#define TPM2_MLDSA_87_SIG_SIZE           4627 /* ML-DSA-87 signature */
+#define TPM2_MLDSA_CTX_MAX_SIZE          255  /* Context string max size */
+#define TPM2_MAX_MLDSA_PUB_SIZE          TPM2_MLDSA_87_PUB_SIZE
+#define TPM2_MAX_MLDSA_SIG_SIZE          TPM2_MLDSA_87_SIG_SIZE
+
+/* ML-KEM Individual Parameter Set Sizes */
+#define TPM2_MLKEM_PRIVATE_KEY_SEED_SIZE  64
+#define TPM2_MLKEM_SHARED_SECRET_SIZE     32
+#define TPM2_MLKEM_512_PUB_SIZE           800  /* ML-KEM-512 public key */
+#define TPM2_MLKEM_512_CT_SIZE            768  /* ML-KEM-512 ciphertext */
+#define TPM2_MLKEM_768_PUB_SIZE           1184 /* ML-KEM-768 public key */
+#define TPM2_MLKEM_768_CT_SIZE            1088 /* ML-KEM-768 ciphertext */
+#define TPM2_MLKEM_1024_PUB_SIZE          1568 /* ML-KEM-1024 public key */
+#define TPM2_MLKEM_1024_CT_SIZE           1568 /* ML-KEM-1024 ciphertext */
+#define TPM2_MAX_MLKEM_PUB_SIZE           TPM2_MLKEM_1024_PUB_SIZE
+#define TPM2_MAX_MLKEM_CT_SIZE            TPM2_MLKEM_1024_CT_SIZE
+#define TPM2_MAX_MLKEM_SHARED_SECRET_SIZE TPM2_MLKEM_SHARED_SECRET_SIZE
+#define TPM2_MAX_SIGNATURE_HINT_SIZE      TPM2_MAX_ECC_KEY_BYTES
+
 /* Capability buffer sizes*/
 #define TPM2_LABEL_MAX_BUFFER 32
 #define TPM2_PCR_SELECT_MAX   ((TPM2_MAX_PCRS + 7) / 8)
@@ -114,8 +140,13 @@ typedef UINT16 TPM2_ALG_ID;
 #define TPM2_ALG_CBC            ((TPM2_ALG_ID)0x0042)
 #define TPM2_ALG_CFB            ((TPM2_ALG_ID)0x0043)
 #define TPM2_ALG_ECB            ((TPM2_ALG_ID)0x0044)
+#define TPM2_ALG_EDDSA          ((TPM2_ALG_ID)0x0060)
+#define TPM2_ALG_HASH_EDDSA     ((TPM2_ALG_ID)0x0061)
+#define TPM2_ALG_MLKEM          ((TPM2_ALG_ID)0x00A0)
+#define TPM2_ALG_MLDSA          ((TPM2_ALG_ID)0x00A1)
+#define TPM2_ALG_HASH_MLDSA     ((TPM2_ALG_ID)0x00A2)
 #define TPM2_ALG_FIRST          ((TPM2_ALG_ID)0x0001)
-#define TPM2_ALG_LAST           ((TPM2_ALG_ID)0x0044)
+#define TPM2_ALG_LAST           ((TPM2_ALG_ID)0x00A2)
 
 /* From TCG Algorithm Registry: Definition of TPM2_ECC_CURVE Constants */
 typedef UINT16 TPM2_ECC_CURVE;
@@ -127,7 +158,25 @@ typedef UINT16 TPM2_ECC_CURVE;
 #define TPM2_ECC_NIST_P521 ((TPM2_ECC_CURVE)0x0005)
 #define TPM2_ECC_BN_P256   ((TPM2_ECC_CURVE)0x0010)
 #define TPM2_ECC_BN_P638   ((TPM2_ECC_CURVE)0x0011)
-#define TPM2_ECC_SM2_P256  ((TPM2_ECC_CURVE)0x0020)
+#define TPM2_ECC_SM2_P256    ((TPM2_ECC_CURVE)0x0020)
+#define TPM2_ECC_CURVE_25519 ((TPM2_ECC_CURVE)0x0040)
+#define TPM2_ECC_CURVE_448   ((TPM2_ECC_CURVE)0x0041)
+
+/* Definition of TPMI_MLKEM_PARMS Constants */
+typedef UINT16 TPMI_MLKEM_PARMS;
+#define TYPE_OF_TPM_MLKEM_PARMS UINT16
+#define TPM2_MLKEM_PARMS_NONE   ((TPMI_MLKEM_PARMS)0x0000)
+#define TPM2_MLKEM_PARMS_512    ((TPMI_MLKEM_PARMS)0x0001)
+#define TPM2_MLKEM_PARMS_768    ((TPMI_MLKEM_PARMS)0x0002)
+#define TPM2_MLKEM_PARMS_1024   ((TPMI_MLKEM_PARMS)0x0003)
+
+/* Definition of TPMI_MLDSA_PARMS Constants */
+typedef UINT16 TPMI_MLDSA_PARMS;
+#define TYPE_OF_TPM_MLDSA_PARMS UINT16
+#define TPM2_MLDSA_PARMS_NONE   ((TPMI_MLDSA_PARMS)0x0000)
+#define TPM2_MLDSA_PARMS_44     ((TPMI_MLDSA_PARMS)0x0001)
+#define TPM2_MLDSA_PARMS_65     ((TPMI_MLDSA_PARMS)0x0002)
+#define TPM2_MLDSA_PARMS_87     ((TPMI_MLDSA_PARMS)0x0003)
 
 /* From TPM 2.0 Part 2: Definition of TPM2_CC Constants */
 typedef UINT32 TPM2_CC;
@@ -253,7 +302,23 @@ typedef UINT32 TPM2_CC;
 #define TPM2_CC_ACT_SetTimeout             ((TPM2_CC)0x00000198)
 #define TPM2_CC_ECC_Encrypt                ((TPM2_CC)0x00000199)
 #define TPM2_CC_ECC_Decrypt                ((TPM2_CC)0x0000019a)
-#define TPM2_CC_LAST                       ((TPM2_CC)0x0000019a)
+#define TPM2_CC_PolicyCapability           ((TPM2_CC)0x0000019b)
+#define TPM2_CC_PolicyParameters           ((TPM2_CC)0x0000019c)
+#define TPM2_CC_NV_DefineSpace2            ((TPM2_CC)0x0000019d)
+#define TPM2_CC_NV_ReadPublic2             ((TPM2_CC)0x0000019e)
+#define TPM2_CC_SetCapability              ((TPM2_CC)0x0000019f)
+#define TPM2_CC_ReadOnlyControl            ((TPM2_CC)0x000001a0)
+#define TPM2_CC_PolicyTransportSPDM        ((TPM2_CC)0x000001a1)
+#define TPM2_CC_SignVerifySequenceStart    ((TPM2_CC)0x000001a2)
+#define TPM2_CC_VerifySequenceComplete     ((TPM2_CC)0x000001a3)
+#define TPM2_CC_SignSequenceComplete       ((TPM2_CC)0x000001a4)
+#define TPM2_CC_VerifyDigestSignature      ((TPM2_CC)0x000001a5)
+#define TPM2_CC_SignDigest                 ((TPM2_CC)0x000001a6)
+#define TPM2_CC_Encapsulate                ((TPM2_CC)0x000001a7)
+#define TPM2_CC_Decapsulate                ((TPM2_CC)0x000001a8)
+#define TPM2_CC_VerifySequenceStart        ((TPM2_CC)0x000001a9)
+#define TPM2_CC_SignSequenceStart          ((TPM2_CC)0x000001aa)
+#define TPM2_CC_LAST                       ((TPM2_CC)0x000001aa)
 #define TPM2_CC_Vendor_TCG_Test            ((TPM2_CC)0x20000000)
 
 /* Definition of Types for Documentation Clarity */
@@ -369,6 +434,8 @@ typedef UINT32 TPM2_RC;
                + 0x055)) /* the sensitive area did not unmarshal correctly after decryption. This  \
                             code is used in lieu of the other unmarshaling errors so that an       \
                             attacker cannot determine where the unmarshaling error occurred */
+#define TPM2_RC_READ_ONLY                                                                          \
+    ((TPM2_RC)(TPM2_RC_VER1 + 0x056)) /* command failed because the TPM is in read-only mode */
 #define TPM2_RC_MAX_FM0                                                                            \
     ((TPM2_RC)(TPM2_RC_VER1 + 0x07F)) /* largest version 1 code that is not a warning */
 #define TPM2_RC_FMT1                                                                               \
@@ -431,6 +498,10 @@ typedef UINT32 TPM2_RC;
 #define TPM2_RC_BINDING                                                                            \
     ((TPM2_RC)(TPM2_RC_FMT1 + 0x025)) /* public and sensitive portions of an object are not        \
                                          cryptographically bound */
+#define TPM2_RC_CHANNEL                                                                            \
+    ((TPM2_RC)(TPM2_RC_FMT1 + 0x030)) /* command requires secure channel protection */
+#define TPM2_RC_CHANNEL_KEY                                                                        \
+    ((TPM2_RC)(TPM2_RC_FMT1 + 0x031)) /* secure channel was not established with required keys */
 #define TPM2_RC_CURVE ((TPM2_RC)(TPM2_RC_FMT1 + 0x026)) /* curve not supported */
 #define TPM2_RC_ECC_POINT                                                                          \
     ((TPM2_RC)(TPM2_RC_FMT1 + 0x027)) /* point is not on the required curve. */
@@ -631,10 +702,12 @@ typedef UINT16 TPM2_ST;
                          tag is changed because the structure has changed */
 #define TPM2_ST_ATTEST_NV_DIGEST ((TPM2_ST)0x801C) /* tag for an attestation structure */
 #define TPM2_ST_CREATION         ((TPM2_ST)0x8021) /* tag for a ticket type */
-#define TPM2_ST_VERIFIED         ((TPM2_ST)0x8022) /* tag for a ticket type */
+#define TPM2_ST_VERIFIED         ((TPM2_ST)0x8022) /* tag for TPMT_TK_VERIFIED from TPM2_VerifySignature() */
 #define TPM2_ST_AUTH_SECRET      ((TPM2_ST)0x8023) /* tag for a ticket type */
 #define TPM2_ST_HASHCHECK        ((TPM2_ST)0x8024) /* tag for a ticket type */
 #define TPM2_ST_AUTH_SIGNED      ((TPM2_ST)0x8025) /* tag for a ticket type */
+#define TPM2_ST_MESSAGE_VERIFIED ((TPM2_ST)0x8026) /* tag for TPMT_TK_VERIFIED from TPM2_VerifySequenceComplete() */
+#define TPM2_ST_DIGEST_VERIFIED  ((TPM2_ST)0x8027) /* tag for TPMT_TK_VERIFIED from TPM2_VerifyDigestSignature() */
 #define TPM2_ST_FU_MANIFEST                                                                        \
     ((TPM2_ST)0x8029) /* tag for a structure describing a Field Upgrade Policy */
 
@@ -672,9 +745,16 @@ typedef UINT32 TPM2_CAP;
 #define TPM2_CAP_PCR_PROPERTIES  ((TPM2_CAP)0x00000007) /* TPM2_PT_PCR */
 #define TPM2_CAP_ECC_CURVES      ((TPM2_CAP)0x00000008) /* TPM2_ECC_CURVE1 */
 #define TPM2_CAP_AUTH_POLICIES   ((TPM2_CAP)0x00000009) /* TPM2_HANDLE */
-#define TPM2_CAP_ACT             ((TPM2_CAP)0x0000000A) /* TPM2_HANDLE */
-#define TPM2_CAP_LAST            ((TPM2_CAP)0x0000000A)
-#define TPM2_CAP_VENDOR_PROPERTY ((TPM2_CAP)0x00000100) /* manufacturer specific */
+#define TPM2_CAP_ACT                ((TPM2_CAP)0x0000000A) /* TPM2_HANDLE */
+#define TPM2_CAP_PUB_KEYS           ((TPM2_CAP)0x0000000B) /* TPM2_PUB_KEY */
+#define TPM2_CAP_SPDM_SESSION_INFO  ((TPM2_CAP)0x0000000C) /* reserved */
+#define TPM2_CAP_LAST               ((TPM2_CAP)0x0000000C)
+#define TPM2_CAP_VENDOR_PROPERTY    ((TPM2_CAP)0x00000100) /* manufacturer specific */
+
+/* Definition of UINT32 TPM2_PUB_KEY Constants <IN> */
+typedef UINT32 TPM2_PUB_KEY;
+#define TPM2_PUB_KEY_TPM_SPDM_00 ((TPM2_PUB_KEY)0x00000000)
+#define TPM2_PUB_KEY_TPM_SPDM_FF ((TPM2_PUB_KEY)0x000000FF)
 
 /* Definition of UINT32 TPM2_PT Constants <INOUT S> */
 typedef UINT32 TPM2_PT;
@@ -1070,6 +1150,9 @@ typedef UINT8 TPM2_HT;
     ((TPM2_HT)0x03) /* Saved Authorization Session  used only in the context of                    \
                        TPM2_GetCapability. This type references saved authorization session        \
                        contexts for which the TPM is maintaining tracking information. */
+#define TPM2_HT_EXTERNAL_NV ((TPM2_HT)0x11) /* External NV Index  assigned by the caller */
+#define TPM2_HT_PERMANENT_NV                                                                              \
+    ((TPM2_HT)0x12) /* Permanent NV Index  assigned by a platform specific specification */
 #define TPM2_HT_PERMANENT                                                                          \
     ((TPM2_HT)0x40) /* Permanent Values  assigned by this specification in                         \
                      */
@@ -1444,7 +1527,12 @@ typedef uint32_t TPMA_STARTUP_CLEAR;
                                         this error code if the index is disabled. Otherwise the    \
                                         TPM would leak the existence of an index even when         \
                                         disabled. */
-#define TPMA_STARTUP_CLEAR_RESERVED1_MASK ((TPMA_STARTUP_CLEAR)0x7FFFFFF0) /* shall be zero */
+#define TPMA_STARTUP_CLEAR_readOnly                                                                \
+    ((TPMA_STARTUP_CLEAR)0x00000010) /* SET 1 All enabled hierarchies including the NULL hierarchy \
+                                        are Read-Only. CLEAR 0 All enabled hierarchies can be     \
+                                        modified. NOTE See TPM2_ReadOnlyControl in TPM 2.0 Part 3 \
+                                        for details on changing this attribute. */
+#define TPMA_STARTUP_CLEAR_RESERVED1_MASK ((TPMA_STARTUP_CLEAR)0x7FFFFFFE0) /* shall be zero */
 #define TPMA_STARTUP_CLEAR_ORDERLY                                                                 \
     ((TPMA_STARTUP_CLEAR)0x80000000) /* SET 1 The TPM received a TPM2_Shutdown and a matching      \
                                         TPM2_Startup. CLEAR 0 TPM2_StartupTPM2_SU_CLEAR was not    \
@@ -1630,6 +1718,9 @@ typedef TPM2_HANDLE TPMI_RH_LOCKOUT;
 
 /* Definition of TPM2_HANDLE TPMI_RH_NV_INDEX Type <INOUT> */
 typedef TPM2_HANDLE TPMI_RH_NV_INDEX;
+
+/* Definition of TPM2_HANDLE TPMI_RH_NV_EXP_INDEX Type <INOUT> */
+typedef TPM2_HANDLE TPMI_RH_NV_EXP_INDEX;
 
 /* Definition of TPM2_HANDLE TPMI_RH_AC Type <IN> */
 typedef TPM2_HANDLE TPMI_RH_AC; /* Interface used to identify an attached component */
@@ -1949,6 +2040,31 @@ struct TPML_ACT_DATA {
     TPMS_ACT_DATA actData[TPM2_MAX_ACT_DATA]; /* array of array of ACT data */
 };
 
+/* Definition of TPMS_SPDM_SESSION_INFO Structure <OUT> */
+typedef struct TPMS_SPDM_SESSION_INFO TPMS_SPDM_SESSION_INFO;
+struct TPMS_SPDM_SESSION_INFO {
+    TPM2B_NAME reqKeyName; /* Name of the Requester key associated with the current SPDM session */
+    TPM2B_NAME tpmKeyName; /* Name of the TPM key associated with the current SPDM session */
+};
+
+typedef struct TPML_PUB_KEY TPML_PUB_KEY;
+
+#define TPM2_MAX_SPDM_SESSION_INFO                                                                 \
+    ((TPM2_MAX_CAP_BUFFER - sizeof(TPM2_CAP) - sizeof(UINT32)) / sizeof(TPMS_SPDM_SESSION_INFO))
+
+/* Definition of TPML_SPDM_SESSION_INFO Structure <OUT> */
+typedef struct TPML_SPDM_SESSION_INFO TPML_SPDM_SESSION_INFO;
+struct TPML_SPDM_SESSION_INFO {
+    UINT32                count; /* number of SPDM session information structures */
+    TPMS_SPDM_SESSION_INFO spdmSessionInfo[TPM2_MAX_SPDM_SESSION_INFO];
+};
+
+/* Definition of TPMS_SET_CAPABILITY_DATA Structure <IN> */
+typedef struct TPMS_SET_CAPABILITY_DATA TPMS_SET_CAPABILITY_DATA;
+
+/* Definition of TPMU_SET_CAPABILITIES Union <IN> */
+typedef union TPMU_SET_CAPABILITIES TPMU_SET_CAPABILITIES;
+
 /* Definition of a non-TPM standard buffer object for use in a TPMU_CAPABILITIES
    for vendor specific capabilities */
 typedef struct TPM2B_MAX_CAP_BUFFER TPM2B_MAX_CAP_BUFFER;
@@ -1957,28 +2073,21 @@ struct TPM2B_MAX_CAP_BUFFER {
     BYTE   buffer[TPM2_MAX_CAP_BUFFER];
 };
 
-/* Definition of TPMU_CAPABILITIES Union <OUT> */
-typedef union TPMU_CAPABILITIES TPMU_CAPABILITIES;
-union TPMU_CAPABILITIES {
-    TPML_ALG_PROPERTY        algorithms;
-    TPML_HANDLE              handles;
-    TPML_CCA                 command;
-    TPML_CC                  ppCommands;
-    TPML_CC                  auditCommands;
-    TPML_PCR_SELECTION       assignedPCR;
-    TPML_TAGGED_TPM_PROPERTY tpmProperties;
-    TPML_TAGGED_PCR_PROPERTY pcrProperties;
-    TPML_ECC_CURVE           eccCurves;
-    TPML_TAGGED_POLICY       authPolicies;
-    TPML_ACT_DATA            actData;
-    TPM2B_MAX_CAP_BUFFER     vendor;
+union TPMU_SET_CAPABILITIES {
+    TPMS_TAGGED_PROPERTY tpmProperty;
+    TPM2B_MAX_CAP_BUFFER raw;
 };
 
-/* Definition of TPMS_CAPABILITY_DATA Structure <OUT> */
-typedef struct TPMS_CAPABILITY_DATA TPMS_CAPABILITY_DATA;
-struct TPMS_CAPABILITY_DATA {
-    TPM2_CAP          capability; /* the capability */
-    TPMU_CAPABILITIES data;       /* the capability data */
+struct TPMS_SET_CAPABILITY_DATA {
+    TPM2_CAP                 setCapability; /* the capability to be set */
+    TPMU_SET_CAPABILITIES data;             /* the capability data to be set */
+};
+
+/* Definition of TPM2B_SET_CAPABILITY_DATA Structure <IN> */
+typedef struct TPM2B_SET_CAPABILITY_DATA TPM2B_SET_CAPABILITY_DATA;
+struct TPM2B_SET_CAPABILITY_DATA {
+    UINT16                   size;
+    TPMS_SET_CAPABILITY_DATA setCapabilityData;
 };
 
 /* Definition of TPMS_CLOCK_INFO Structure */
@@ -2284,6 +2393,8 @@ typedef TPMS_SCHEME_HASH  TPMS_SIG_SCHEME_ECDSA;     /* all asymmetric signing s
 typedef TPMS_SCHEME_HASH  TPMS_SIG_SCHEME_SM2;       /* all asymmetric signing schemes */
 typedef TPMS_SCHEME_HASH  TPMS_SIG_SCHEME_ECSCHNORR; /* all asymmetric signing schemes */
 typedef TPMS_SCHEME_ECDAA TPMS_SIG_SCHEME_ECDAA;     /* schemes that need a hash and a count */
+typedef TPMS_EMPTY        TPMS_SIG_SCHEME_EDDSA;
+typedef TPMS_EMPTY        TPMS_SIG_SCHEME_HASH_EDDSA;
 
 /* Definition of TPMU_SIG_SCHEME Union <INOUT S> */
 typedef union TPMU_SIG_SCHEME TPMU_SIG_SCHEME;
@@ -2294,6 +2405,8 @@ union TPMU_SIG_SCHEME {
     TPMS_SIG_SCHEME_ECDAA     ecdaa;     /* all signing schemes including anonymous schemes */
     TPMS_SIG_SCHEME_SM2       sm2;       /* all signing schemes including anonymous schemes */
     TPMS_SIG_SCHEME_ECSCHNORR ecschnorr; /* all signing schemes including anonymous schemes */
+    TPMS_SIG_SCHEME_EDDSA     eddsa;
+    TPMS_SIG_SCHEME_HASH_EDDSA hash_eddsa;
     TPMS_SCHEME_HMAC          hmac;      /* the HMAC scheme */
     TPMS_SCHEME_HASH any;  /* selector that allows access to digest for any signing scheme */
     TPMS_EMPTY       null; /* TPM2_ALG_NULL */
@@ -2353,6 +2466,8 @@ union TPMU_ASYM_SCHEME {
     TPMS_SIG_SCHEME_ECDAA     ecdaa;     /* signing and anonymous signing */
     TPMS_SIG_SCHEME_SM2       sm2;       /* signing and anonymous signing */
     TPMS_SIG_SCHEME_ECSCHNORR ecschnorr; /* signing and anonymous signing */
+    TPMS_SIG_SCHEME_EDDSA     eddsa;     /* signing and anonymous signing */
+    TPMS_SIG_SCHEME_HASH_EDDSA hash_eddsa; /* signing and anonymous signing */
     TPMS_ENC_SCHEME_RSAES     rsaes;     /* schemes with no hash */
     TPMS_ENC_SCHEME_OAEP      oaep;      /* schemes with no hash */
     TPMS_SCHEME_HASH          anySig;
@@ -2482,18 +2597,39 @@ typedef TPMS_SIGNATURE_ECC TPMS_SIGNATURE_ECDAA;
 typedef TPMS_SIGNATURE_ECC TPMS_SIGNATURE_SM2;
 typedef TPMS_SIGNATURE_ECC TPMS_SIGNATURE_ECSCHNORR;
 
+/* EdDSA Signature Types (must be defined before TPMU_SIGNATURE) */
+typedef struct TPM2B_SIGNATURE_EDDSA {
+    UINT16 size;
+    BYTE   buffer[2 * TPM2_MAX_ECC_KEY_BYTES];
+} TPM2B_SIGNATURE_EDDSA;
+
+/* ML-DSA Signature Types (must be defined before TPMU_SIGNATURE) */
+typedef struct TPM2B_SIGNATURE_MLDSA {
+    UINT16 size;
+    BYTE   buffer[TPM2_MAX_MLDSA_SIG_SIZE];
+} TPM2B_SIGNATURE_MLDSA;
+
+typedef struct TPMS_SIGNATURE_HASH_MLDSA {
+    TPMI_ALG_HASH         hash;
+    TPM2B_SIGNATURE_MLDSA signature;
+} TPMS_SIGNATURE_HASH_MLDSA;
+
 /* Definition of TPMU_SIGNATURE Union <INOUT S> */
 typedef union TPMU_SIGNATURE TPMU_SIGNATURE;
 union TPMU_SIGNATURE {
-    TPMS_SIGNATURE_RSASSA    rsassa;    /* all asymmetric signatures */
-    TPMS_SIGNATURE_RSAPSS    rsapss;    /* all asymmetric signatures */
-    TPMS_SIGNATURE_ECDSA     ecdsa;     /* all asymmetric signatures */
-    TPMS_SIGNATURE_ECDAA     ecdaa;     /* all asymmetric signatures */
-    TPMS_SIGNATURE_SM2       sm2;       /* all asymmetric signatures */
-    TPMS_SIGNATURE_ECSCHNORR ecschnorr; /* all asymmetric signatures */
-    TPMT_HA                  hmac;      /* HMAC signature required to be supported */
-    TPMS_SCHEME_HASH         any;       /* used to access the hash */
-    TPMS_EMPTY               null;      /* TPM2_ALG_NULL */
+    TPMS_SIGNATURE_RSASSA     rsassa;     /* all asymmetric signatures */
+    TPMS_SIGNATURE_RSAPSS     rsapss;     /* all asymmetric signatures */
+    TPMS_SIGNATURE_ECDSA      ecdsa;      /* all asymmetric signatures */
+    TPMS_SIGNATURE_ECDAA      ecdaa;      /* all asymmetric signatures */
+    TPMS_SIGNATURE_SM2        sm2;        /* all asymmetric signatures */
+    TPMS_SIGNATURE_ECSCHNORR  ecschnorr;  /* all asymmetric signatures */
+    TPM2B_SIGNATURE_EDDSA     eddsa;      /* EdDSA signature */
+    TPM2B_SIGNATURE_EDDSA     hash_eddsa; /* Hash-EdDSA signature */
+    TPM2B_SIGNATURE_MLDSA     mldsa;      /* ML-DSA signature */
+    TPMS_SIGNATURE_HASH_MLDSA hash_mldsa; /* Hash-ML-DSA signature (hash + signature) */
+    TPMT_HA                   hmac;       /* HMAC signature required to be supported */
+    TPMS_SCHEME_HASH          any;        /* used to access the hash */
+    TPMS_EMPTY                null;       /* TPM2_ALG_NULL */
 };
 
 /* Definition of TPMT_SIGNATURE Structure */
@@ -2508,6 +2644,7 @@ typedef union TPMU_ENCRYPTED_SECRET TPMU_ENCRYPTED_SECRET;
 union TPMU_ENCRYPTED_SECRET {
     BYTE ecc[sizeof(TPMS_ECC_POINT)];
     BYTE rsa[TPM2_MAX_RSA_KEY_BYTES];
+    BYTE mlkem[TPM2_MAX_MLKEM_CT_SIZE];
     BYTE symmetric[sizeof(TPM2B_DIGEST)];
     BYTE keyedHash[sizeof(TPM2B_DIGEST)]; /* Any symmetrically encrypted secret value will be
                                              limited to be no larger than a digest. */
@@ -2523,14 +2660,41 @@ struct TPM2B_ENCRYPTED_SECRET {
 /* Definition of TPM2_ALG_ID TPMI_ALG_PUBLIC Type */
 typedef TPM2_ALG_ID TPMI_ALG_PUBLIC;
 
+/* Definition of ML-KEM TPM2B_PUBLIC_KEY_MLKEM Structure */
+typedef struct TPM2B_PUBLIC_KEY_MLKEM TPM2B_PUBLIC_KEY_MLKEM;
+struct TPM2B_PUBLIC_KEY_MLKEM {
+    UINT16 size;
+    BYTE   buffer[TPM2_MAX_MLKEM_PUB_SIZE];
+};
+
+/* Definition of ML-KEM TPM2B_PRIVATE_KEY_MLKEM Structure */
+typedef struct TPM2B_PRIVATE_KEY_MLKEM TPM2B_PRIVATE_KEY_MLKEM;
+struct TPM2B_PRIVATE_KEY_MLKEM {
+    UINT16 size;
+    BYTE   buffer[TPM2_MLKEM_PRIVATE_KEY_SEED_SIZE];
+};
+
+/* ML-DSA Key Types */
+typedef struct TPM2B_PUBLIC_KEY_MLDSA {
+    UINT16 size;
+    BYTE   buffer[TPM2_MAX_MLDSA_PUB_SIZE];
+} TPM2B_PUBLIC_KEY_MLDSA;
+
+typedef struct TPM2B_PRIVATE_KEY_MLDSA {
+    UINT16 size;
+    BYTE   buffer[TPM2_MLDSA_PRIVATE_KEY_SEED_SIZE];
+} TPM2B_PRIVATE_KEY_MLDSA;
+
 /* Definition of TPMU_PUBLIC_ID Union <INOUT S> */
 typedef union TPMU_PUBLIC_ID TPMU_PUBLIC_ID;
 union TPMU_PUBLIC_ID {
-    TPM2B_DIGEST         keyedHash;
-    TPM2B_DIGEST         sym;
-    TPM2B_PUBLIC_KEY_RSA rsa;
-    TPMS_ECC_POINT       ecc;
-    TPMS_DERIVE          derive;
+    TPM2B_DIGEST           keyedHash;
+    TPM2B_DIGEST           sym;
+    TPM2B_PUBLIC_KEY_RSA   rsa;
+    TPMS_ECC_POINT         ecc;
+    TPMS_DERIVE            derive;
+    TPM2B_PUBLIC_KEY_MLKEM mlkem;
+    TPM2B_PUBLIC_KEY_MLDSA mldsa;
 };
 
 /* Definition of TPMS_KEYEDHASH_PARMS Structure */
@@ -2595,14 +2759,67 @@ struct TPMS_ECC_PARMS {
             effect and in the reference code this field needs to be set to TPM2_ALG_NULL. */
 };
 
+/* Definition of TPMS_MLKEM_PARMS Structure */
+typedef struct TPMS_MLKEM_PARMS TPMS_MLKEM_PARMS;
+struct TPMS_MLKEM_PARMS {
+    TPMT_SYM_DEF_OBJECT symmetric; /* for a restricted decryption key shall be set to a
+                                      supported symmetric algorithm key size and mode. if the
+                                      key is not a restricted decryption key this field shall
+                                      be set to TPM2_ALG_NULL. */
+    TPMI_MLKEM_PARMS parameterSet; /* ML-KEM parameter set (512, 768, or 1024) */
+};
+
+/* Definition of ML-KEM TPM2B_KEM_CIPHERTEXT Structure */
+typedef struct TPM2B_KEM_CIPHERTEXT TPM2B_KEM_CIPHERTEXT;
+struct TPM2B_KEM_CIPHERTEXT {
+    UINT16 size;
+    BYTE   buffer[TPM2_MAX_MLKEM_CT_SIZE];
+};
+
+/* Definition of TPM2B_SHARED_SECRET Structure */
+typedef struct TPM2B_SHARED_SECRET TPM2B_SHARED_SECRET;
+struct TPM2B_SHARED_SECRET {
+    UINT16 size;
+    BYTE   buffer[TPM2_MLKEM_SHARED_SECRET_SIZE];
+};
+
+/* ML-DSA Parameter Structures */
+typedef struct TPMS_MLDSA_PARMS {
+    TPMI_MLDSA_PARMS parameterSet;
+    UINT8            allowExternalMu; /* TPM spec BOOL is a single byte (BYTE/UINT8) */
+} TPMS_MLDSA_PARMS;
+
+typedef struct TPMS_HASH_MLDSA_PARMS {
+    TPMI_MLDSA_PARMS parameterSet;
+    TPMI_ALG_HASH    hashAlg;
+} TPMS_HASH_MLDSA_PARMS;
+
+typedef union TPMU_SIGNATURE_CTX TPMU_SIGNATURE_CTX;
+union TPMU_SIGNATURE_CTX {
+    BYTE buffer[TPM2_MLDSA_CTX_MAX_SIZE];
+};
+
+typedef struct TPM2B_SIGNATURE_CTX {
+    UINT16 size;
+    BYTE   buffer[sizeof(TPMU_SIGNATURE_CTX)];
+} TPM2B_SIGNATURE_CTX;
+
+typedef struct TPM2B_SIGNATURE_HINT {
+    UINT16 size;
+    BYTE   buffer[TPM2_MAX_SIGNATURE_HINT_SIZE];
+} TPM2B_SIGNATURE_HINT;
+
 /* Definition of TPMU_PUBLIC_PARMS Union <INOUT S> */
 typedef union TPMU_PUBLIC_PARMS TPMU_PUBLIC_PARMS;
 union TPMU_PUBLIC_PARMS {
-    TPMS_KEYEDHASH_PARMS keyedHashDetail; /* sign  decrypt  neither */
-    TPMS_SYMCIPHER_PARMS symDetail;       /* a symmetric block cipher */
-    TPMS_RSA_PARMS       rsaDetail;       /* decrypt + sign2 */
-    TPMS_ECC_PARMS       eccDetail;       /* decrypt + sign2 */
-    TPMS_ASYM_PARMS      asymDetail;      /* common scheme structure for RSA and ECC keys */
+    TPMS_KEYEDHASH_PARMS  keyedHashDetail;  /* sign  decrypt  neither */
+    TPMS_SYMCIPHER_PARMS  symDetail;        /* a symmetric block cipher */
+    TPMS_RSA_PARMS        rsaDetail;        /* decrypt + sign2 */
+    TPMS_ECC_PARMS        eccDetail;        /* decrypt + sign2 */
+    TPMS_ASYM_PARMS       asymDetail;       /* common scheme structure for RSA and ECC keys */
+    TPMS_MLKEM_PARMS      mlkemDetail;      /* ML-KEM decrypt */
+    TPMS_MLDSA_PARMS      mldsaDetail;      /* ML-DSA sign */
+    TPMS_HASH_MLDSA_PARMS hash_mldsaDetail; /* Hash-based ML-DSA sign */
 };
 
 /* Definition of TPMT_PUBLIC_PARMS Structure */
@@ -2636,6 +2853,42 @@ struct TPM2B_PUBLIC {
     TPMT_PUBLIC publicArea;
 };
 
+#define TPM2_MAX_PUB_KEYS                                                                          \
+    ((TPM2_MAX_CAP_BUFFER - sizeof(TPM2_CAP) - sizeof(UINT32)) / sizeof(TPM2B_PUBLIC))
+
+/* Definition of TPML_PUB_KEY Structure <OUT> */
+typedef struct TPML_PUB_KEY TPML_PUB_KEY;
+struct TPML_PUB_KEY {
+    UINT32       count; /* number of public keys. A value of zero is allowed. */
+    TPM2B_PUBLIC pubKeys[TPM2_MAX_PUB_KEYS]; /* array of public keys */
+};
+
+/* Definition of TPMU_CAPABILITIES Union <OUT> */
+typedef union TPMU_CAPABILITIES TPMU_CAPABILITIES;
+union TPMU_CAPABILITIES {
+    TPML_ALG_PROPERTY        algorithms;
+    TPML_HANDLE              handles;
+    TPML_CCA                 command;
+    TPML_CC                  ppCommands;
+    TPML_CC                  auditCommands;
+    TPML_PCR_SELECTION       assignedPCR;
+    TPML_TAGGED_TPM_PROPERTY tpmProperties;
+    TPML_TAGGED_PCR_PROPERTY pcrProperties;
+    TPML_ECC_CURVE           eccCurves;
+    TPML_TAGGED_POLICY       authPolicies;
+    TPML_ACT_DATA            actData;
+    TPML_PUB_KEY             pubKeys;
+    TPML_SPDM_SESSION_INFO   spdmSessionInfo;
+    TPM2B_MAX_CAP_BUFFER     vendor;
+};
+
+/* Definition of TPMS_CAPABILITY_DATA Structure <OUT> */
+typedef struct TPMS_CAPABILITY_DATA TPMS_CAPABILITY_DATA;
+struct TPMS_CAPABILITY_DATA {
+    TPM2_CAP          capability; /* the capability */
+    TPMU_CAPABILITIES data;       /* the capability data */
+};
+
 /* Definition of TPM2B_TEMPLATE Structure */
 typedef struct TPM2B_TEMPLATE TPM2B_TEMPLATE;
 struct TPM2B_TEMPLATE {
@@ -2653,11 +2906,13 @@ struct TPM2B_PRIVATE_VENDOR_SPECIFIC {
 /* Definition of TPMU_SENSITIVE_COMPOSITE Union <INOUT S> */
 typedef union TPMU_SENSITIVE_COMPOSITE TPMU_SENSITIVE_COMPOSITE;
 union TPMU_SENSITIVE_COMPOSITE {
-    TPM2B_PRIVATE_KEY_RSA         rsa;  /* a prime factor of the public key */
-    TPM2B_ECC_PARAMETER           ecc;  /* the integer private key */
-    TPM2B_SENSITIVE_DATA          bits; /* the private data */
-    TPM2B_SYM_KEY                 sym;  /* the symmetric key */
-    TPM2B_PRIVATE_VENDOR_SPECIFIC any;  /* vendor-specific size for key storage */
+    TPM2B_PRIVATE_KEY_RSA         rsa;   /* a prime factor of the public key */
+    TPM2B_ECC_PARAMETER           ecc;   /* the integer private key */
+    TPM2B_SENSITIVE_DATA          bits;  /* the private data */
+    TPM2B_SYM_KEY                 sym;   /* the symmetric key */
+    TPM2B_PRIVATE_VENDOR_SPECIFIC any;   /* vendor-specific size for key storage */
+    TPM2B_PRIVATE_KEY_MLDSA       mldsa; /* ML-DSA private key seed */
+    TPM2B_PRIVATE_KEY_MLKEM       mlkem; /* ML-KEM private key seed */
 };
 
 /* Definition of TPMT_SENSITIVE Structure */
@@ -2884,6 +3139,46 @@ typedef struct TPM2B_NV_PUBLIC TPM2B_NV_PUBLIC;
 struct TPM2B_NV_PUBLIC {
     UINT16         size;
     TPMS_NV_PUBLIC nvPublic;
+};
+
+/* Definition of (UINT64) TPMA_NV_EXP Bits */
+typedef uint64_t TPMA_NV_EXP;
+
+#define TPMA_NV_EXP_EXTERNAL_NV_ENCRYPTION ((TPMA_NV_EXP)0x0000000100000000ULL)
+#define TPMA_NV_EXP_EXTERNAL_NV_INTEGRITY  ((TPMA_NV_EXP)0x0000000200000000ULL)
+#define TPMA_NV_EXP_EXTERNAL_NV_ANTIROLLBACK ((TPMA_NV_EXP)0x0000000400000000ULL)
+#define TPMA_NV_EXP_RESERVED_MASK          ((TPMA_NV_EXP)0xFFFFFF80FFFFFFFFULL)
+
+/* Definition of TPMS_NV_PUBLIC_EXP_ATTR Structure */
+typedef struct TPMS_NV_PUBLIC_EXP_ATTR TPMS_NV_PUBLIC_EXP_ATTR;
+struct TPMS_NV_PUBLIC_EXP_ATTR {
+    TPMI_RH_NV_EXP_INDEX nvIndex;
+    TPMI_ALG_HASH        nameAlg;
+    TPMA_NV_EXP          attributes;
+    TPM2B_DIGEST         authPolicy;
+    UINT16               dataSize;
+};
+
+/* Definition of TPMU_NV_PUBLIC_2 Union */
+typedef union TPMU_NV_PUBLIC_2 TPMU_NV_PUBLIC_2;
+union TPMU_NV_PUBLIC_2 {
+    TPMS_NV_PUBLIC         nvIndex;
+    TPMS_NV_PUBLIC_EXP_ATTR externalNV;
+    TPMS_NV_PUBLIC         permanentNV;
+};
+
+/* Definition of TPMT_NV_PUBLIC_2 Structure */
+typedef struct TPMT_NV_PUBLIC_2 TPMT_NV_PUBLIC_2;
+struct TPMT_NV_PUBLIC_2 {
+    TPM2_HT           handleType;
+    TPMU_NV_PUBLIC_2 publicArea;
+};
+
+/* Definition of TPM2B_NV_PUBLIC_2 Structure */
+typedef struct TPM2B_NV_PUBLIC_2 TPM2B_NV_PUBLIC_2;
+struct TPM2B_NV_PUBLIC_2 {
+    UINT16           size;
+    TPMT_NV_PUBLIC_2 nvPublic;
 };
 
 /* Definition of TPM2B_CONTEXT_SENSITIVE Structure <INOUT> */

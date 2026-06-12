@@ -832,3 +832,19 @@ TPMT_UNMARSHAL_TK(TPMT_TK_HASHCHECK,
                   Tss2_MU_UINT32_Unmarshal,
                   digest,
                   Tss2_MU_TPM2B_DIGEST_Unmarshal)
+
+TPMT_MARSHAL_2(TPMT_NV_PUBLIC_2,
+               handleType,
+               VAL,
+               Tss2_MU_UINT8_Marshal,
+               publicArea,
+               ADDR,
+               handleType,
+               Tss2_MU_TPMU_NV_PUBLIC_2_Marshal)
+
+TPMT_UNMARSHAL_2(TPMT_NV_PUBLIC_2,
+                 handleType,
+                 Tss2_MU_UINT8_Unmarshal,
+                 publicArea,
+                 handleType,
+                 Tss2_MU_TPMU_NV_PUBLIC_2_Unmarshal)

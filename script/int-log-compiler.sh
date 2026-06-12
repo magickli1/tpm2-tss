@@ -8,6 +8,13 @@
 # All rights reserved.
 #;**********************************************************************;
 
+# wolfTPM fwTPM PQC tests use fwtpm_server (mssim wire format) instead of tpm_server.
+case "${@: -1}" in
+*sys-pqc-wolftpm*)
+    exec ${srcdir}/script/int-log-compiler-wolftpm.sh "$@"
+    ;;
+esac
+
 # source the int-log-compiler-common sript
 . ${srcdir}/script/int-log-compiler-common.sh
 
