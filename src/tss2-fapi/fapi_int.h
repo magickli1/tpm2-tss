@@ -368,6 +368,23 @@ typedef struct {
     uint8_t *ret_data;       /**< The result buffer. */
 } IFAPI_GetRandom;
 
+/** The data structure holding internal state of Fapi_Encapsulate/Fapi_Decapsulate.
+ */
+typedef struct {
+    char const          *keyPath;
+    IFAPI_OBJECT        *key_object;
+    ESYS_TR              key_handle;
+    ESYS_TR              auth_session;
+    const IFAPI_PROFILE *profile;
+    uint8_t             *ciphertext;
+    size_t               ciphertextSize;
+    uint8_t             *sharedSecret;
+    size_t               sharedSecretSize;
+    uint8_t             *out_ciphertext;
+    size_t               out_ciphertextSize;
+    bool                 decapsulate;
+} IFAPI_Kem;
+
 /** The data structure holding internal state of Fapi_Key_Setcertificate.
  */
 typedef struct {
@@ -461,7 +478,18 @@ enum FAPI_SIGN_STATE {
     SIGN_WAIT_FOR_SESSION,
     SIGN_WAIT_FOR_KEY,
     SIGN_AUTH_SENT,
+    SIGN_PQC_SEQ_UPDATE_INIT,
+    SIGN_PQC_SEQ_UPDATE,
+    SIGN_PQC_SEQ_COMPLETE_INIT,
+    SIGN_PQC_SEQ_COMPLETE,
     SIGN_WAIT_FOR_FLUSH
+};
+
+/** Signing backend selected in ifapi_key_sign */
+enum IFAPI_SIGN_OP {
+    IFAPI_SIGN_OP_CLASSIC = 0,
+    IFAPI_SIGN_OP_DIGEST,
+    IFAPI_SIGN_OP_SEQUENCE,
 };
 
 /** The data structure holding internal state of Fapi_Sign.
@@ -486,7 +514,9 @@ typedef struct {
     size_t               signatureSize;
     char                *publicKey; /**< Public key of the signing key. */
     TPMT_TK_HASHCHECK   *validation;
-    ESYS_TR              sequence_handle; /**< The handle for the hash update */
+    ESYS_TR              sequence_handle; /**< The handle for hash or sign sequence */
+    enum IFAPI_SIGN_OP   sign_op;         /**< Selected TPM signing command */
+    bool                 sign_mldsa_message; /**< Pure ML-DSA message signing */
 } IFAPI_Key_Sign;
 
 /** The data structure holding internal state of Fapi_Unseal.
@@ -630,7 +660,7 @@ typedef struct {
 /** The data structure holding internal state of key verify signature.
  */
 typedef struct {
-    const char    *keyPath;
+    char          *keyPath;
     uint8_t const *signature;
     size_t         signatureSize;
     uint8_t const *digest;
@@ -1092,6 +1122,15 @@ enum FAPI_STATE {
     DATA_DECRYPT_AUTHORIZE_KEY,
     DATA_DECRYPT_CLEANUP,
 
+    KEM_WAIT_FOR_PROFILE,
+    KEM_WAIT_FOR_SESSION,
+    KEM_WAIT_FOR_KEY,
+    KEM_AUTHORIZE_KEY,
+    KEM_WAIT_FOR_ENCAPSULATE,
+    KEM_WAIT_FOR_DECAPSULATE,
+    KEM_WAIT_FOR_FLUSH,
+    KEM_CLEANUP,
+
     PCR_EXTEND_WAIT_FOR_SESSION,
     PCR_EXTEND_WAIT_FOR_GET_CAP,
     PCR_EXTEND_READ_EVENT_LOG,
@@ -1237,6 +1276,7 @@ struct FAPI_CONTEXT {
     IFAPI_NV_Cmds         nv_cmd;
     IFAPI_CREATE_NV       create_nv;
     IFAPI_GetRandom       get_random;
+    IFAPI_Kem             kem;
     IFAPI_CreatePrimary   createPrimary;
     IFAPI_LoadKey         loadKey;
     ESYS_TR               session1;       /**< The first session used by FAPI  */

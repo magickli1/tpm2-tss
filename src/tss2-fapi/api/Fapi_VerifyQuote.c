@@ -289,9 +289,17 @@ Fapi_VerifyQuote_Finish(FAPI_CONTEXT *context) {
         }
 
         /* Verify the signature over the attest2b structure. */
-        r = ifapi_verify_signature_quote(&key_object, command->signature, command->signatureSize,
-                                         &attest2b.attestationData[0], attest2b.size,
-                                         &command->fapi_quote_info.sig_scheme);
+        if (key_object.misc.key.public.publicArea.type == TPM2_ALG_HASH_MLDSA
+            || key_object.misc.key.public.publicArea.type == TPM2_ALG_MLDSA) {
+            r = ifapi_pqc_verify_quote(context, command->keyPath, &key_object,
+                                       &attest2b.attestationData[0], attest2b.size,
+                                       command->signature, command->signatureSize);
+        } else {
+            /* Classic ECC/RSA quote verify path unchanged from upstream. */
+            r = ifapi_verify_signature_quote(&key_object, command->signature, command->signatureSize,
+                                             &attest2b.attestationData[0], attest2b.size,
+                                             &command->fapi_quote_info.sig_scheme);
+        }
         goto_if_error(r, "Verify signature.", error_cleanup);
 
         /* Check qualifying data */

@@ -323,7 +323,8 @@ Fapi_AuthorizePolicy_Finish(FAPI_CONTEXT *context) {
 
     statecase(context->state, AUTHORIZE_NEW_KEY_SIGN_POLICY);
         /* Perform the singing operation on the policy's aHash. */
-        r = ifapi_key_sign(context, *keyObject, NULL, &aHash, NULL, &signature, &publicKey, NULL);
+        r = ifapi_key_sign(context, *keyObject, NULL, &aHash, NULL, &signature, &publicKey, NULL,
+                           false);
         return_try_again(r);
         goto_if_error(r, "Fapi sign.", cleanup);
 

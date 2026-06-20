@@ -785,21 +785,86 @@ TPMT_UNMARSHAL_TK(TPMT_TK_CREATION,
                   digest,
                   Tss2_MU_TPM2B_DIGEST_Unmarshal)
 
-TPMT_MARSHAL_TK(TPMT_TK_VERIFIED,
-                tag,
-                Tss2_MU_UINT16_Marshal,
-                hierarchy,
-                Tss2_MU_UINT32_Marshal,
-                digest,
-                Tss2_MU_TPM2B_DIGEST_Marshal)
+TSS2_RC
+Tss2_MU_TPMT_TK_VERIFIED_Marshal(TPMT_TK_VERIFIED const *src,
+                                 uint8_t                   buffer[],
+                                 size_t                    buffer_size,
+                                 size_t                   *offset) {
+    TSS2_RC ret = TSS2_RC_SUCCESS;
+    size_t  local_offset = 0;
 
-TPMT_UNMARSHAL_TK(TPMT_TK_VERIFIED,
-                  tag,
-                  Tss2_MU_UINT16_Unmarshal,
-                  hierarchy,
-                  Tss2_MU_UINT32_Unmarshal,
-                  digest,
-                  Tss2_MU_TPM2B_DIGEST_Unmarshal)
+    if (!src)
+        return TSS2_SYS_RC_BAD_REFERENCE;
+
+    if (offset)
+        local_offset = *offset;
+    else if (!buffer)
+        return TSS2_MU_RC_BAD_REFERENCE;
+
+    ret = Tss2_MU_UINT16_Marshal(src->tag, buffer, buffer_size, &local_offset);
+    if (ret != TSS2_RC_SUCCESS)
+        return ret;
+
+    ret = Tss2_MU_UINT32_Marshal(src->hierarchy, buffer, buffer_size, &local_offset);
+    if (ret != TSS2_RC_SUCCESS)
+        return ret;
+
+    if (src->tag == TPM2_ST_DIGEST_VERIFIED) {
+        ret = Tss2_MU_UINT16_Marshal(src->metaAlg, buffer, buffer_size, &local_offset);
+        if (ret != TSS2_RC_SUCCESS)
+            return ret;
+    }
+
+    ret = Tss2_MU_TPM2B_DIGEST_Marshal(&src->digest, buffer, buffer_size, &local_offset);
+
+    if (offset && ret == TSS2_RC_SUCCESS)
+        *offset = local_offset;
+
+    return ret;
+}
+
+TSS2_RC
+Tss2_MU_TPMT_TK_VERIFIED_Unmarshal(uint8_t const buffer[], size_t buffer_size, size_t *offset,
+                                   TPMT_TK_VERIFIED *dest) {
+    TSS2_RC ret = TSS2_RC_SUCCESS;
+    size_t  local_offset = 0;
+    TPMT_TK_VERIFIED tmp;
+
+    if (offset)
+        local_offset = *offset;
+    else if (!dest)
+        return TSS2_MU_RC_BAD_REFERENCE;
+
+    memset(&tmp, '\0', sizeof(tmp));
+
+    ret = Tss2_MU_UINT16_Unmarshal(buffer, buffer_size, &local_offset, dest ? &dest->tag : &tmp.tag);
+    if (ret != TSS2_RC_SUCCESS)
+        return ret;
+
+    ret = Tss2_MU_UINT32_Unmarshal(buffer, buffer_size, &local_offset,
+                                   dest ? &dest->hierarchy : &tmp.hierarchy);
+    if (ret != TSS2_RC_SUCCESS)
+        return ret;
+
+    if ((dest ? dest->tag : tmp.tag) == TPM2_ST_DIGEST_VERIFIED) {
+        ret = Tss2_MU_UINT16_Unmarshal(buffer, buffer_size, &local_offset,
+                                       dest ? &dest->metaAlg : &tmp.metaAlg);
+        if (ret != TSS2_RC_SUCCESS)
+            return ret;
+    } else if (dest) {
+        dest->metaAlg = TPM2_ALG_NULL;
+    } else {
+        tmp.metaAlg = TPM2_ALG_NULL;
+    }
+
+    ret = Tss2_MU_TPM2B_DIGEST_Unmarshal(buffer, buffer_size, &local_offset,
+                                         dest ? &dest->digest : &tmp.digest);
+
+    if (offset && ret == TSS2_RC_SUCCESS)
+        *offset = local_offset;
+
+    return ret;
+}
 
 TPMT_MARSHAL_TK(TPMT_TK_AUTH,
                 tag,

@@ -28,6 +28,8 @@
 #define LOGMODULE fapi
 #include "util/log.h" // for SAFE_FREE, goto_if_error, retu...
 
+static void ifapi_assign_key_signing_scheme(IFAPI_KEY *key, const IFAPI_PROFILE *profile);
+
 /** State machine for flushing objects.
  *
  * @param[in] context The FAPI_CONTEXT.
@@ -760,7 +762,7 @@ ifapi_init_primary_finish(FAPI_CONTEXT *context, TSS2_KEY_TYPE ktype, IFAPI_OBJE
         if (pkey->public.publicArea.type == TPM2_ALG_RSA)
             pkey->signing_scheme = context->profiles.default_profile.rsa_signing_scheme;
         else
-            pkey->signing_scheme = context->profiles.default_profile.ecc_signing_scheme;
+            ifapi_assign_key_signing_scheme(pkey, &context->profiles.default_profile);
         context->createPrimary.pkey_object.public.handle = primaryHandle;
         SAFE_FREE(pkey->serialization.buffer);
         return TSS2_RC_SUCCESS;
@@ -1490,15 +1492,55 @@ ifapi_merge_profile_into_nv_template(FAPI_CONTEXT *context, IFAPI_NV_TEMPLATE *t
  */
 TSS2_RC
 ifapi_merge_profile_into_template(const IFAPI_PROFILE *profile, IFAPI_KEY_TEMPLATE *template) {
+    TPMI_ALG_PUBLIC effective_type = profile->type;
+
+    /* Storage/decrypt keys keep profile type; optional sign_type overrides signing keys. */
+    if (profile->sign_type != 0
+        && (template->public.publicArea.objectAttributes & TPMA_OBJECT_SIGN_ENCRYPT)
+        && !(template->public.publicArea.objectAttributes & TPMA_OBJECT_DECRYPT)) {
+        effective_type = profile->sign_type;
+    } else if (profile->kem_type != 0
+               && (template->public.publicArea.objectAttributes & TPMA_OBJECT_DECRYPT)
+               && !(template->public.publicArea.objectAttributes & TPMA_OBJECT_SIGN_ENCRYPT)
+               && !(template->public.publicArea.objectAttributes & TPMA_OBJECT_RESTRICTED)) {
+        effective_type = profile->kem_type;
+    }
+
     /* Merge profile parameters */
-    template->public.publicArea.type = profile->type;
+    template->public.publicArea.type = effective_type;
     template->public.publicArea.nameAlg = profile->nameAlg;
-    if (profile->type == TPM2_ALG_RSA) {
+    if (effective_type == TPM2_ALG_RSA) {
         template->public.publicArea.parameters.rsaDetail.keyBits = profile->keyBits;
         template->public.publicArea.parameters.rsaDetail.exponent = profile->exponent;
     } else if (profile->type == TPM2_ALG_ECC) {
         template->public.publicArea.parameters.eccDetail.curveID = profile->curveID;
         template->public.publicArea.parameters.eccDetail.kdf.scheme = TPM2_ALG_NULL;
+    }
+    if (effective_type == TPM2_ALG_MLKEM) {
+        TPMI_MLKEM_PARAMETER_SET mlkem_ps = profile->mlkem_parameter_set;
+
+        if (mlkem_ps == 0)
+            mlkem_ps = TPM2_MLKEM_768;
+        template->public.publicArea.parameters.mlkemDetail.parameterSet = mlkem_ps;
+        template->public.publicArea.parameters.mlkemDetail.symmetric.algorithm = TPM2_ALG_NULL;
+    } else if (effective_type == TPM2_ALG_MLDSA) {
+        TPMI_MLDSA_PARAMETER_SET mldsa_ps = profile->mldsa_parameter_set;
+
+        if (mldsa_ps == 0)
+            mldsa_ps = TPM2_MLDSA_65;
+        template->public.publicArea.parameters.mldsaDetail.parameterSet = mldsa_ps;
+        template->public.publicArea.parameters.mldsaDetail.allowExternalMu
+            = profile->mldsa_allow_external_mu;
+    } else if (effective_type == TPM2_ALG_HASH_MLDSA) {
+        TPMI_MLDSA_PARAMETER_SET mldsa_ps = profile->mldsa_parameter_set;
+        TPMI_ALG_HASH            prehash = profile->mldsa_prehash_alg;
+
+        if (mldsa_ps == 0)
+            mldsa_ps = TPM2_MLDSA_65;
+        if (prehash == TPM2_ALG_ERROR || prehash == 0)
+            prehash = TPM2_ALG_SHA256;
+        template->public.publicArea.parameters.hash_mldsaDetail.parameterSet = mldsa_ps;
+        template->public.publicArea.parameters.hash_mldsaDetail.hashAlg = prehash;
     }
 
     /* Set remaining parameters depending on key type */
@@ -1539,13 +1581,25 @@ ifapi_merge_profile_into_template(const IFAPI_PROFILE *profile, IFAPI_KEY_TEMPLA
             } else {
                 template->public.publicArea.parameters.eccDetail.scheme.scheme = TPM2_ALG_NULL;
             }
-        } else {
+        } else if (effective_type == TPM2_ALG_MLKEM) {
+            if (template->public.publicArea.objectAttributes & TPMA_OBJECT_DECRYPT) {
+                template->public.publicArea.parameters.mlkemDetail.symmetric
+                    = profile->sym_parameters;
+            }
+        } else if (effective_type != TPM2_ALG_MLDSA && effective_type != TPM2_ALG_HASH_MLDSA) {
             template->public.publicArea.parameters.asymDetail.scheme.scheme = TPM2_ALG_NULL;
         }
     } else {
         /* Non restricted key */
-        template->public.publicArea.parameters.asymDetail.symmetric.algorithm = TPM2_ALG_NULL;
-        template->public.publicArea.parameters.asymDetail.scheme.scheme = TPM2_ALG_NULL;
+        if (profile->type == TPM2_ALG_RSA || profile->type == TPM2_ALG_ECC) {
+            template->public.publicArea.parameters.asymDetail.symmetric.algorithm = TPM2_ALG_NULL;
+            template->public.publicArea.parameters.asymDetail.scheme.scheme = TPM2_ALG_NULL;
+        } else if (effective_type == TPM2_ALG_MLKEM) {
+            if (template->public.publicArea.objectAttributes & TPMA_OBJECT_DECRYPT) {
+                template->public.publicArea.parameters.mlkemDetail.symmetric
+                    = profile->sym_parameters;
+            }
+        }
     }
     return TSS2_RC_SUCCESS;
 }
@@ -2752,6 +2806,322 @@ error_cleanup:
  * @retval TSS2_FAPI_RC_BAD_PATH if the path is used in inappropriate context
  *         or contains illegal characters.
  */
+/** Assign signing_scheme metadata stored alongside a FAPI key object. */
+static void
+ifapi_assign_key_signing_scheme(IFAPI_KEY *key, const IFAPI_PROFILE *profile)
+{
+    switch (key->public.publicArea.type) {
+    case TPM2_ALG_RSA:
+        key->signing_scheme = profile->rsa_signing_scheme;
+        break;
+    case TPM2_ALG_MLDSA:
+        key->signing_scheme.scheme = TPM2_ALG_MLDSA;
+        memset(&key->signing_scheme.details, 0, sizeof(key->signing_scheme.details));
+        break;
+    case TPM2_ALG_HASH_MLDSA:
+        key->signing_scheme.scheme = TPM2_ALG_HASH_MLDSA;
+        key->signing_scheme.details.rsassa.hashAlg = profile->mldsa_prehash_alg
+                                                           ? profile->mldsa_prehash_alg
+                                                           : TPM2_ALG_SHA256;
+        break;
+    default:
+        key->signing_scheme = profile->ecc_signing_scheme;
+        break;
+    }
+}
+
+TSS2_RC
+ifapi_signature_bytes_to_tpm(TPMI_ALG_PUBLIC  key_type,
+                              const uint8_t   *signature,
+                              size_t           signature_size,
+                              TPMT_SIGNATURE  *tpm_signature)
+{
+    memset(tpm_signature, 0, sizeof(*tpm_signature));
+
+    if (key_type == TPM2_ALG_HASH_MLDSA) {
+        if (signature_size > sizeof(tpm_signature->signature.hash_mldsa.signature.buffer))
+            return TSS2_FAPI_RC_BAD_VALUE;
+        tpm_signature->sigAlg = TPM2_ALG_HASH_MLDSA;
+        tpm_signature->signature.hash_mldsa.signature.size = signature_size;
+        if (signature_size > 0)
+            memcpy(tpm_signature->signature.hash_mldsa.signature.buffer, signature,
+                   signature_size);
+    } else if (key_type == TPM2_ALG_MLDSA) {
+        if (signature_size > sizeof(tpm_signature->signature.mldsa.buffer))
+            return TSS2_FAPI_RC_BAD_VALUE;
+        tpm_signature->sigAlg = TPM2_ALG_MLDSA;
+        tpm_signature->signature.mldsa.size = signature_size;
+        if (signature_size > 0)
+            memcpy(tpm_signature->signature.mldsa.buffer, signature, signature_size);
+    }
+    return TSS2_RC_SUCCESS;
+}
+
+TSS2_RC
+ifapi_pqc_verify_digest(FAPI_CONTEXT *context,
+                        const char   *keyPath,
+                        IFAPI_OBJECT *key_object,
+                        const uint8_t *digest,
+                        size_t         digest_size,
+                        const uint8_t *signature,
+                        size_t         signature_size)
+{
+    TSS2_RC             r;
+    IFAPI_OBJECT       *loaded_key = NULL;
+    ESYS_TR             session = ESYS_TR_NONE;
+    TPM2B_DIGEST        tpm_digest = { 0 };
+    TPMT_SIGNATURE      tpm_signature = { 0 };
+    TPMT_TK_VERIFIED   *ticket = NULL;
+    enum FAPI_STATE_PREPARE_LOAD_KEY prepare_saved = context->loadKey.prepare_state;
+
+    if (key_object->misc.key.public.publicArea.type != TPM2_ALG_HASH_MLDSA) {
+        return TSS2_FAPI_RC_BAD_VALUE;
+    }
+
+    if (digest_size > sizeof(tpm_digest.buffer))
+        return TSS2_FAPI_RC_BAD_VALUE;
+
+    tpm_digest.size = digest_size;
+    memcpy(tpm_digest.buffer, digest, digest_size);
+    r = ifapi_signature_bytes_to_tpm(key_object->misc.key.public.publicArea.type, signature,
+                                     signature_size, &tpm_signature);
+    goto_if_error(r, "Convert PQC signature bytes", error);
+
+    context->loadKey.prepare_state = PREPARE_LOAD_KEY_INIT;
+    do {
+        r = ifapi_load_key(context, keyPath, &loaded_key);
+        if (base_rc(r) == TSS2_BASE_RC_TRY_AGAIN) {
+            r = ifapi_io_poll(&context->io);
+            goto_if_error(r, "IO poll for PQC verify", error);
+            r = TSS2_FAPI_RC_TRY_AGAIN;
+        }
+    } while (base_rc(r) == TSS2_BASE_RC_TRY_AGAIN);
+    goto_if_error(r, "Load key for PQC verify", error);
+
+    r = ifapi_authorize_object(context, loaded_key, &session);
+    goto_if_error(r, "Authorize key for PQC verify", error);
+
+    r = Esys_VerifyDigestSignature(context->esys, loaded_key->public.handle, session,
+                                   ENC_SESSION_IF_POLICY(session), ESYS_TR_NONE, NULL, &tpm_digest,
+                                   &tpm_signature, &ticket);
+    goto_if_error(r, "VerifyDigestSignature", error);
+
+    if (ticket == NULL || ticket->tag != TPM2_ST_DIGEST_VERIFIED) {
+        r = TSS2_FAPI_RC_SIGNATURE_VERIFICATION_FAILED;
+        goto error;
+    }
+
+    Esys_Free(ticket);
+    if (loaded_key && loaded_key->public.handle != ESYS_TR_NONE
+        && !loaded_key->misc.key.persistent_handle)
+        Esys_FlushContext(context->esys, loaded_key->public.handle);
+    if (loaded_key)
+        loaded_key->public.handle = ESYS_TR_NONE;
+    context->loadKey.prepare_state = prepare_saved;
+    return TSS2_RC_SUCCESS;
+
+error:
+    Esys_Free(ticket);
+    if (loaded_key && loaded_key->public.handle != ESYS_TR_NONE
+        && !loaded_key->misc.key.persistent_handle)
+        Esys_FlushContext(context->esys, loaded_key->public.handle);
+    if (loaded_key)
+        loaded_key->public.handle = ESYS_TR_NONE;
+    context->loadKey.prepare_state = prepare_saved;
+    return r;
+}
+
+TSS2_RC
+ifapi_pqc_verify_sequence(FAPI_CONTEXT *context,
+                          const char   *keyPath,
+                          IFAPI_OBJECT *key_object,
+                          const uint8_t *message,
+                          size_t         message_size,
+                          const uint8_t *signature,
+                          size_t         signature_size)
+{
+    TSS2_RC                           r;
+    IFAPI_OBJECT                     *loaded_key = NULL;
+    ESYS_TR                           session = ESYS_TR_NONE;
+    ESYS_TR                           verify_sequence = ESYS_TR_NONE;
+    TPM2B_AUTH                        sequenceAuth = { .size = 0 };
+    TPMT_SIGNATURE                    tpm_signature = { 0 };
+    TPMT_TK_VERIFIED                 *ticket = NULL;
+    enum FAPI_STATE_PREPARE_LOAD_KEY  prepare_saved = context->loadKey.prepare_state;
+    TPMI_ALG_PUBLIC                   key_type = key_object->misc.key.public.publicArea.type;
+    size_t                            offset = 0;
+
+    if (key_type != TPM2_ALG_MLDSA)
+        return TSS2_FAPI_RC_BAD_VALUE;
+
+    r = ifapi_signature_bytes_to_tpm(key_type, signature, signature_size, &tpm_signature);
+    goto_if_error(r, "Convert PQC signature bytes", error);
+
+    context->loadKey.prepare_state = PREPARE_LOAD_KEY_INIT;
+    do {
+        r = ifapi_load_key(context, keyPath, &loaded_key);
+        if (base_rc(r) == TSS2_BASE_RC_TRY_AGAIN) {
+            r = ifapi_io_poll(&context->io);
+            goto_if_error(r, "IO poll for PQC sequence verify", error);
+            r = TSS2_FAPI_RC_TRY_AGAIN;
+        }
+    } while (base_rc(r) == TSS2_BASE_RC_TRY_AGAIN);
+    goto_if_error(r, "Load key for PQC sequence verify", error);
+
+    r = ifapi_authorize_object(context, loaded_key, &session);
+    goto_if_error(r, "Authorize key for PQC sequence verify", error);
+
+    r = Esys_VerifySequenceStart(context->esys, loaded_key->public.handle, session,
+                                 ENC_SESSION_IF_POLICY(session), ESYS_TR_NONE, &sequenceAuth,
+                                 NULL, NULL, &verify_sequence);
+    goto_if_error(r, "VerifySequenceStart", error);
+
+    while (offset < message_size) {
+        TPM2B_MAX_BUFFER block = { 0 };
+
+        block.size = message_size - offset;
+        if (block.size > TPM2_MAX_DIGEST_BUFFER)
+            block.size = TPM2_MAX_DIGEST_BUFFER;
+        memcpy(block.buffer, message + offset, block.size);
+
+        r = Esys_SequenceUpdate(context->esys, verify_sequence, ESYS_TR_PASSWORD, ESYS_TR_NONE,
+                                ESYS_TR_NONE, &block);
+        goto_if_error(r, "SequenceUpdate", error);
+
+        offset += block.size;
+    }
+
+    r = Esys_VerifySequenceComplete(context->esys, verify_sequence, loaded_key->public.handle,
+                                    session, ENC_SESSION_IF_POLICY(session), ESYS_TR_NONE,
+                                    &tpm_signature, &ticket);
+    goto_if_error(r, "VerifySequenceComplete", error);
+
+    if (ticket == NULL || ticket->tag != TPM2_ST_MESSAGE_VERIFIED) {
+        r = TSS2_FAPI_RC_SIGNATURE_VERIFICATION_FAILED;
+        goto error;
+    }
+
+    Esys_Free(ticket);
+    if (verify_sequence != ESYS_TR_NONE)
+        Esys_FlushContext(context->esys, verify_sequence);
+    if (loaded_key && loaded_key->public.handle != ESYS_TR_NONE
+        && !loaded_key->misc.key.persistent_handle)
+        Esys_FlushContext(context->esys, loaded_key->public.handle);
+    if (loaded_key)
+        loaded_key->public.handle = ESYS_TR_NONE;
+    context->loadKey.prepare_state = prepare_saved;
+    return TSS2_RC_SUCCESS;
+
+error:
+    Esys_Free(ticket);
+    if (verify_sequence != ESYS_TR_NONE)
+        Esys_FlushContext(context->esys, verify_sequence);
+    if (loaded_key && loaded_key->public.handle != ESYS_TR_NONE
+        && !loaded_key->misc.key.persistent_handle)
+        Esys_FlushContext(context->esys, loaded_key->public.handle);
+    if (loaded_key)
+        loaded_key->public.handle = ESYS_TR_NONE;
+    context->loadKey.prepare_state = prepare_saved;
+    return r;
+}
+
+TSS2_RC
+ifapi_pqc_verify_quote(FAPI_CONTEXT  *context,
+                       const char    *keyPath,
+                       IFAPI_OBJECT  *key_object,
+                       const uint8_t *attest,
+                       size_t         attest_size,
+                       const uint8_t *signature,
+                       size_t         signature_size)
+{
+    TSS2_RC                       r;
+    IFAPI_OBJECT                 *loaded_key = NULL;
+    ESYS_TR                       session = ESYS_TR_NONE;
+    TPM2B_DIGEST                  digest = { 0 };
+    TPMT_SIGNATURE                tpm_signature = { 0 };
+    TPMT_TK_VERIFIED             *ticket = NULL;
+    IFAPI_CRYPTO_CONTEXT_BLOB    *cryptoContext = NULL;
+    size_t                        digest_size = 0;
+    enum FAPI_STATE_PREPARE_LOAD_KEY prepare_saved = context->loadKey.prepare_state;
+    TPMI_ALG_PUBLIC               key_type = key_object->misc.key.public.publicArea.type;
+    TPMI_ALG_HASH                 hash_alg;
+
+    if (key_type == TPM2_ALG_MLDSA) {
+        hash_alg = key_object->misc.key.public.publicArea.nameAlg;
+    } else if (key_type == TPM2_ALG_HASH_MLDSA) {
+        hash_alg = key_object->misc.key.public.publicArea.parameters.hash_mldsaDetail.hashAlg;
+    } else {
+        return TSS2_FAPI_RC_BAD_VALUE;
+    }
+
+    r = ifapi_crypto_hash_start(&cryptoContext, hash_alg);
+    goto_if_error(r, "Hash start for quote verify", error);
+
+    r = ifapi_crypto_hash_update(cryptoContext, attest, attest_size);
+    goto_if_error(r, "Hash update for quote verify", error);
+
+    r = ifapi_crypto_hash_finish(&cryptoContext, digest.buffer, &digest_size);
+    goto_if_error(r, "Hash finish for quote verify", error);
+    digest.size = digest_size;
+
+    r = ifapi_signature_bytes_to_tpm(key_type, signature, signature_size, &tpm_signature);
+    goto_if_error(r, "Convert PQC signature bytes", error);
+
+    context->loadKey.prepare_state = PREPARE_LOAD_KEY_INIT;
+    do {
+        r = ifapi_load_key(context, keyPath, &loaded_key);
+        if (base_rc(r) == TSS2_BASE_RC_TRY_AGAIN) {
+            r = ifapi_io_poll(&context->io);
+            goto_if_error(r, "IO poll for PQC quote verify", error);
+            r = TSS2_FAPI_RC_TRY_AGAIN;
+        }
+    } while (base_rc(r) == TSS2_BASE_RC_TRY_AGAIN);
+    goto_if_error(r, "Load key for PQC quote verify", error);
+
+    r = ifapi_authorize_object(context, loaded_key, &session);
+    goto_if_error(r, "Authorize key for PQC quote verify", error);
+
+    if (key_type == TPM2_ALG_HASH_MLDSA) {
+        r = Esys_VerifyDigestSignature(context->esys, loaded_key->public.handle, session,
+                                       ENC_SESSION_IF_POLICY(session), ESYS_TR_NONE, NULL, &digest,
+                                       &tpm_signature, &ticket);
+        goto_if_error(r, "Verify PQC quote signature", error);
+        if (ticket == NULL || ticket->tag != TPM2_ST_DIGEST_VERIFIED) {
+            r = TSS2_FAPI_RC_SIGNATURE_VERIFICATION_FAILED;
+            goto error;
+        }
+    } else {
+        r = Esys_VerifySignature(context->esys, loaded_key->public.handle, session,
+                                 ENC_SESSION_IF_POLICY(session), ESYS_TR_NONE, &digest,
+                                 &tpm_signature, &ticket);
+        goto_if_error(r, "Verify PQC quote signature", error);
+        if (ticket == NULL || ticket->tag != TPM2_ST_VERIFIED) {
+            r = TSS2_FAPI_RC_SIGNATURE_VERIFICATION_FAILED;
+            goto error;
+        }
+    }
+
+    Esys_Free(ticket);
+    if (loaded_key && loaded_key->public.handle != ESYS_TR_NONE
+        && !loaded_key->misc.key.persistent_handle)
+        Esys_FlushContext(context->esys, loaded_key->public.handle);
+    if (loaded_key)
+        loaded_key->public.handle = ESYS_TR_NONE;
+    context->loadKey.prepare_state = prepare_saved;
+    return TSS2_RC_SUCCESS;
+
+error:
+    ifapi_crypto_hash_abort(&cryptoContext);
+    Esys_Free(ticket);
+    if (loaded_key && loaded_key->public.handle != ESYS_TR_NONE
+        && !loaded_key->misc.key.persistent_handle)
+        Esys_FlushContext(context->esys, loaded_key->public.handle);
+    if (loaded_key)
+        loaded_key->public.handle = ESYS_TR_NONE;
+    context->loadKey.prepare_state = prepare_saved;
+    return r;
+}
+
 TSS2_RC
 ifapi_load_key(FAPI_CONTEXT *context, char const *keyPath, IFAPI_OBJECT **key_object) {
     TSS2_RC              r;
@@ -2858,10 +3228,12 @@ ifapi_key_sign(FAPI_CONTEXT      *context,
                TPMT_TK_HASHCHECK *validation,
                TPMT_SIGNATURE   **tpm_signature,
                char             **publicKey,
-               char             **certificate) {
+               char             **certificate,
+               bool               sign_mldsa_message) {
     TSS2_RC         r;
     TPMT_SIG_SCHEME sig_scheme;
     ESYS_TR         session;
+    TPMI_ALG_PUBLIC key_type;
 
     TPMT_TK_HASHCHECK hash_validation = {
         .tag = TPM2_ST_HASHCHECK,
@@ -2877,29 +3249,134 @@ ifapi_key_sign(FAPI_CONTEXT      *context,
     statecase(context->Key_Sign.state, SIGN_INIT);
         sig_key_object = context->Key_Sign.key_object;
         context->Key_Sign.handle = sig_key_object->public.handle;
+        context->Key_Sign.sign_mldsa_message = sign_mldsa_message;
+        key_type = sig_key_object->misc.key.public.publicArea.type;
 
         r = ifapi_authorize_object(context, sig_key_object, &session);
         return_try_again(r);
         goto_if_error(r, "Authorize signing key", cleanup);
 
-        r = ifapi_get_sig_scheme(context, sig_key_object, padding, digest, &sig_scheme);
-        goto_if_error(r, "Get signature scheme", cleanup);
+        if (key_type == TPM2_ALG_HASH_MLDSA) {
+            context->Key_Sign.sign_op = IFAPI_SIGN_OP_DIGEST;
+            r = Esys_SignDigest_Async(context->esys, context->Key_Sign.handle, session,
+                                      ENC_SESSION_IF_POLICY(session), ESYS_TR_NONE, NULL, digest,
+                                      &hash_validation);
+            goto_if_error(r, "Error: SignDigest", cleanup);
+        } else if (key_type == TPM2_ALG_MLDSA && sign_mldsa_message) {
+            TPM2B_AUTH sequenceAuth = { .size = 0 };
 
-        /* Prepare the signing operation. */
-        r = Esys_Sign_Async(context->esys, context->Key_Sign.handle, session,
-                            ENC_SESSION_IF_POLICY(session), ESYS_TR_NONE, digest, &sig_scheme,
-                            &hash_validation);
-        goto_if_error(r, "Error: Sign", cleanup);
+            if (context->Key_Sign.data == NULL || context->Key_Sign.data_size == 0) {
+                goto_error(r, TSS2_FAPI_RC_BAD_VALUE, "PQC message signing requires data",
+                           cleanup);
+            }
+            context->Key_Sign.sign_op = IFAPI_SIGN_OP_SEQUENCE;
+            context->Key_Sign.offset = 0;
+            r = Esys_SignSequenceStart_Async(context->esys, context->Key_Sign.handle, session,
+                                             ENC_SESSION_IF_POLICY(session), ESYS_TR_NONE,
+                                             &sequenceAuth, NULL);
+            goto_if_error(r, "Error: SignSequenceStart", cleanup);
+        } else {
+            context->Key_Sign.sign_op = IFAPI_SIGN_OP_CLASSIC;
+            r = ifapi_get_sig_scheme(context, sig_key_object, padding, digest, &sig_scheme);
+            goto_if_error(r, "Get signature scheme", cleanup);
+
+            r = Esys_Sign_Async(context->esys, context->Key_Sign.handle, session,
+                                ENC_SESSION_IF_POLICY(session), ESYS_TR_NONE, digest, &sig_scheme,
+                                &hash_validation);
+            goto_if_error(r, "Error: Sign", cleanup);
+        }
         fallthrough;
 
     statecase(context->Key_Sign.state, SIGN_AUTH_SENT);
         context->Key_Sign.signature = NULL;
-        r = Esys_Sign_Finish(context->esys, &context->Key_Sign.signature);
+        if (context->Key_Sign.sign_op == IFAPI_SIGN_OP_DIGEST) {
+            r = Esys_SignDigest_Finish(context->esys, &context->Key_Sign.signature);
+        } else if (context->Key_Sign.sign_op == IFAPI_SIGN_OP_SEQUENCE) {
+            r = Esys_SignSequenceStart_Finish(context->esys, &context->Key_Sign.sequence_handle);
+            return_try_again(r);
+            goto_if_error(r, "Error: SignSequenceStart", cleanup);
+
+            if (context->Key_Sign.data_size > TPM2_MAX_DIGEST_BUFFER) {
+                context->Key_Sign.state = SIGN_PQC_SEQ_UPDATE_INIT;
+                return TSS2_FAPI_RC_TRY_AGAIN;
+            }
+            context->Key_Sign.state = SIGN_PQC_SEQ_COMPLETE_INIT;
+            return TSS2_FAPI_RC_TRY_AGAIN;
+        } else {
+            r = Esys_Sign_Finish(context->esys, &context->Key_Sign.signature);
+        }
         return_try_again(r);
         context->session2 = ESYS_TR_NONE;
         goto_if_error(r, "Error: Sign", cleanup);
 
         /* Prepare the flushing of the signing key. */
+        if (!sig_key_object->misc.key.persistent_handle) {
+            r = Esys_FlushContext_Async(context->esys, context->Key_Sign.handle);
+            goto_if_error(r, "Error: FlushContext", cleanup);
+        }
+        fallthrough;
+
+    statecase(context->Key_Sign.state, SIGN_PQC_SEQ_UPDATE_INIT);
+        {
+            TPM2B_MAX_BUFFER block = { 0 };
+
+            context->Key_Sign.chunk = context->Key_Sign.data_size - context->Key_Sign.offset;
+            if (context->Key_Sign.chunk > TPM2_MAX_DIGEST_BUFFER)
+                context->Key_Sign.chunk = TPM2_MAX_DIGEST_BUFFER;
+
+            block.size = context->Key_Sign.chunk;
+            memcpy(block.buffer, context->Key_Sign.data + context->Key_Sign.offset,
+                   context->Key_Sign.chunk);
+
+            r = Esys_SequenceUpdate_Async(context->esys, context->Key_Sign.sequence_handle,
+                                          ESYS_TR_PASSWORD, ESYS_TR_NONE, ESYS_TR_NONE, &block);
+            goto_if_error(r, "Error: SequenceUpdate", cleanup);
+        }
+        fallthrough;
+
+    statecase(context->Key_Sign.state, SIGN_PQC_SEQ_UPDATE);
+        r = Esys_SequenceUpdate_Finish(context->esys);
+        return_try_again(r);
+        goto_if_error(r, "Error: SequenceUpdate", cleanup);
+
+        context->Key_Sign.offset += context->Key_Sign.chunk;
+        if (context->Key_Sign.offset + TPM2_MAX_DIGEST_BUFFER < context->Key_Sign.data_size) {
+            context->Key_Sign.state = SIGN_PQC_SEQ_UPDATE_INIT;
+            return TSS2_FAPI_RC_TRY_AGAIN;
+        }
+        fallthrough;
+
+    statecase(context->Key_Sign.state, SIGN_PQC_SEQ_COMPLETE_INIT);
+        {
+            TPM2B_MAX_BUFFER block = { 0 };
+            ESYS_TR         session2 = ESYS_TR_NONE;
+
+            block.size = context->Key_Sign.data_size - context->Key_Sign.offset;
+            memcpy(block.buffer, context->Key_Sign.data + context->Key_Sign.offset, block.size);
+
+            r = ifapi_authorize_object(context, sig_key_object, &session2);
+            return_try_again(r);
+            goto_if_error(r, "Authorize signing key", cleanup);
+
+            r = Esys_SignSequenceComplete_Async(context->esys, context->Key_Sign.sequence_handle,
+                                                context->Key_Sign.handle, session2,
+                                                ENC_SESSION_IF_POLICY(session2), ESYS_TR_NONE,
+                                                &block);
+            goto_if_error(r, "Error: SignSequenceComplete", cleanup);
+        }
+        fallthrough;
+
+    statecase(context->Key_Sign.state, SIGN_PQC_SEQ_COMPLETE);
+        context->Key_Sign.signature = NULL;
+        r = Esys_SignSequenceComplete_Finish(context->esys, &context->Key_Sign.signature);
+        return_try_again(r);
+        goto_if_error(r, "Error: SignSequenceComplete", cleanup);
+
+        if (context->Key_Sign.sequence_handle != ESYS_TR_NONE) {
+            Esys_FlushContext(context->esys, context->Key_Sign.sequence_handle);
+            context->Key_Sign.sequence_handle = ESYS_TR_NONE;
+        }
+
         if (!sig_key_object->misc.key.persistent_handle) {
             r = Esys_FlushContext_Async(context->esys, context->Key_Sign.handle);
             goto_if_error(r, "Error: FlushContext", cleanup);
@@ -2937,6 +3414,8 @@ ifapi_key_sign(FAPI_CONTEXT      *context,
     }
 
 cleanup:
+    if (context->Key_Sign.sequence_handle != ESYS_TR_NONE)
+        Esys_FlushContext(context->esys, context->Key_Sign.sequence_handle);
     if (context->Key_Sign.handle != ESYS_TR_NONE)
         Esys_FlushContext(context->esys, context->Key_Sign.handle);
     ifapi_cleanup_ifapi_object(context->Key_Sign.key_object);
@@ -3486,10 +3965,7 @@ ifapi_key_create(FAPI_CONTEXT *context, IFAPI_KEY_TEMPLATE *template) {
         SAFE_FREE(outPrivate);
         SAFE_FREE(outPublic);
 
-        if (object->misc.key.public.publicArea.type == TPM2_ALG_RSA)
-            object->misc.key.signing_scheme = context->cmd.Key_Create.profile->rsa_signing_scheme;
-        else
-            object->misc.key.signing_scheme = context->cmd.Key_Create.profile->ecc_signing_scheme;
+        ifapi_assign_key_signing_scheme(&object->misc.key, context->cmd.Key_Create.profile);
 
         fallthrough;
 
@@ -4705,10 +5181,7 @@ ifapi_create_primary(FAPI_CONTEXT *context, IFAPI_KEY_TEMPLATE *template) {
         r = ifapi_get_name(&outPublic->publicArea, &object->misc.key.name);
         goto_if_error(r, "Get key name", error_cleanup);
 
-        if (object->misc.key.public.publicArea.type == TPM2_ALG_RSA)
-            object->misc.key.signing_scheme = context->cmd.Key_Create.profile->rsa_signing_scheme;
-        else
-            object->misc.key.signing_scheme = context->cmd.Key_Create.profile->ecc_signing_scheme;
+        ifapi_assign_key_signing_scheme(&object->misc.key, context->cmd.Key_Create.profile);
         fallthrough;
 
     statecase(context->cmd.Key_Create.state, KEY_CREATE_PRIMARY_WAIT_FOR_AUTHORIZE2);

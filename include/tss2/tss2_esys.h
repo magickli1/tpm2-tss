@@ -1244,6 +1244,47 @@ Esys_EncryptDecrypt2_Finish(ESYS_CONTEXT      *esysContext,
                             TPM2B_MAX_BUFFER **outData,
                             TPM2B_IV         **ivOut);
 
+TSS2_RC
+Esys_Decapsulate(ESYS_CONTEXT               *esysContext,
+                 ESYS_TR                     keyHandle,
+                 ESYS_TR                     shandle1,
+                 ESYS_TR                     shandle2,
+                 ESYS_TR                     shandle3,
+                 const TPM2B_KEM_CIPHERTEXT *ciphertext,
+                 TPM2B_SHARED_SECRET       **sharedSecret);
+
+TSS2_RC
+Esys_Decapsulate_Async(ESYS_CONTEXT               *esysContext,
+                       ESYS_TR                     keyHandle,
+                       ESYS_TR                     shandle1,
+                       ESYS_TR                     shandle2,
+                       ESYS_TR                     shandle3,
+                       const TPM2B_KEM_CIPHERTEXT *ciphertext);
+
+TSS2_RC
+Esys_Decapsulate_Finish(ESYS_CONTEXT *esysContext, TPM2B_SHARED_SECRET **sharedSecret);
+
+TSS2_RC
+Esys_Encapsulate(ESYS_CONTEXT          *esysContext,
+                 ESYS_TR                keyHandle,
+                 ESYS_TR                shandle1,
+                 ESYS_TR                shandle2,
+                 ESYS_TR                shandle3,
+                 TPM2B_SHARED_SECRET  **sharedSecret,
+                 TPM2B_KEM_CIPHERTEXT **ciphertext);
+
+TSS2_RC
+Esys_Encapsulate_Async(ESYS_CONTEXT *esysContext,
+                       ESYS_TR       keyHandle,
+                       ESYS_TR       shandle1,
+                       ESYS_TR       shandle2,
+                       ESYS_TR       shandle3);
+
+TSS2_RC
+Esys_Encapsulate_Finish(ESYS_CONTEXT          *esysContext,
+                        TPM2B_SHARED_SECRET  **sharedSecret,
+                        TPM2B_KEM_CIPHERTEXT **ciphertext);
+
 /* Table 62 - TPM2_Hash Command */
 
 TSS2_RC
@@ -1779,6 +1820,76 @@ Esys_VerifySignature_Async(ESYS_CONTEXT         *esysContext,
 TSS2_RC
 Esys_VerifySignature_Finish(ESYS_CONTEXT *esysContext, TPMT_TK_VERIFIED **validation);
 
+TSS2_RC
+Esys_VerifyDigestSignature(ESYS_CONTEXT              *esysContext,
+                           ESYS_TR                    keyHandle,
+                           ESYS_TR                    shandle1,
+                           ESYS_TR                    shandle2,
+                           ESYS_TR                    shandle3,
+                           const TPM2B_SIGNATURE_CTX *context,
+                           const TPM2B_DIGEST        *digest,
+                           const TPMT_SIGNATURE      *signature,
+                           TPMT_TK_VERIFIED         **validation);
+
+TSS2_RC
+Esys_VerifyDigestSignature_Async(ESYS_CONTEXT              *esysContext,
+                                 ESYS_TR                    keyHandle,
+                                 ESYS_TR                    shandle1,
+                                 ESYS_TR                    shandle2,
+                                 ESYS_TR                    shandle3,
+                                 const TPM2B_SIGNATURE_CTX *context,
+                                 const TPM2B_DIGEST        *digest,
+                                 const TPMT_SIGNATURE      *signature);
+
+TSS2_RC
+Esys_VerifyDigestSignature_Finish(ESYS_CONTEXT *esysContext, TPMT_TK_VERIFIED **validation);
+
+TSS2_RC
+Esys_VerifySequenceComplete(ESYS_CONTEXT         *esysContext,
+                            ESYS_TR               sequenceHandle,
+                            ESYS_TR               keyHandle,
+                            ESYS_TR               shandle1,
+                            ESYS_TR               shandle2,
+                            ESYS_TR               shandle3,
+                            const TPMT_SIGNATURE *signature,
+                            TPMT_TK_VERIFIED    **validation);
+
+TSS2_RC
+Esys_VerifySequenceComplete_Async(ESYS_CONTEXT         *esysContext,
+                                  ESYS_TR               sequenceHandle,
+                                  ESYS_TR               keyHandle,
+                                  ESYS_TR               shandle1,
+                                  ESYS_TR               shandle2,
+                                  ESYS_TR               shandle3,
+                                  const TPMT_SIGNATURE *signature);
+
+TSS2_RC
+Esys_VerifySequenceComplete_Finish(ESYS_CONTEXT *esysContext, TPMT_TK_VERIFIED **validation);
+
+TSS2_RC
+Esys_VerifySequenceStart(ESYS_CONTEXT               *esysContext,
+                         ESYS_TR                     keyHandle,
+                         ESYS_TR                     shandle1,
+                         ESYS_TR                     shandle2,
+                         ESYS_TR                     shandle3,
+                         const TPM2B_AUTH           *auth,
+                         const TPM2B_SIGNATURE_HINT *hint,
+                         const TPM2B_SIGNATURE_CTX  *context,
+                         ESYS_TR                    *sequenceHandle);
+
+TSS2_RC
+Esys_VerifySequenceStart_Async(ESYS_CONTEXT               *esysContext,
+                               ESYS_TR                     keyHandle,
+                               ESYS_TR                     shandle1,
+                               ESYS_TR                     shandle2,
+                               ESYS_TR                     shandle3,
+                               const TPM2B_AUTH           *auth,
+                               const TPM2B_SIGNATURE_HINT *hint,
+                               const TPM2B_SIGNATURE_CTX  *context);
+
+TSS2_RC
+Esys_VerifySequenceStart_Finish(ESYS_CONTEXT *esysContext, ESYS_TR *sequenceHandle);
+
 /* Table 99 - TPM2_Sign Command */
 
 TSS2_RC
@@ -1804,6 +1915,74 @@ Esys_Sign_Async(ESYS_CONTEXT            *esysContext,
 
 TSS2_RC
 Esys_Sign_Finish(ESYS_CONTEXT *esysContext, TPMT_SIGNATURE **signature);
+
+TSS2_RC
+Esys_SignDigest(ESYS_CONTEXT              *esysContext,
+                ESYS_TR                    keyHandle,
+                ESYS_TR                    shandle1,
+                ESYS_TR                    shandle2,
+                ESYS_TR                    shandle3,
+                const TPM2B_SIGNATURE_CTX *context,
+                const TPM2B_DIGEST        *digest,
+                const TPMT_TK_HASHCHECK   *validation,
+                TPMT_SIGNATURE           **signature);
+
+TSS2_RC
+Esys_SignDigest_Async(ESYS_CONTEXT              *esysContext,
+                      ESYS_TR                    keyHandle,
+                      ESYS_TR                    shandle1,
+                      ESYS_TR                    shandle2,
+                      ESYS_TR                    shandle3,
+                      const TPM2B_SIGNATURE_CTX *context,
+                      const TPM2B_DIGEST        *digest,
+                      const TPMT_TK_HASHCHECK   *validation);
+
+TSS2_RC
+Esys_SignDigest_Finish(ESYS_CONTEXT *esysContext, TPMT_SIGNATURE **signature);
+
+TSS2_RC
+Esys_SignSequenceComplete(ESYS_CONTEXT           *esysContext,
+                          ESYS_TR                 sequenceHandle,
+                          ESYS_TR                 keyHandle,
+                          ESYS_TR                 shandle1,
+                          ESYS_TR                 shandle2,
+                          ESYS_TR                 shandle3,
+                          const TPM2B_MAX_BUFFER *buffer,
+                          TPMT_SIGNATURE        **signature);
+
+TSS2_RC
+Esys_SignSequenceComplete_Async(ESYS_CONTEXT           *esysContext,
+                                ESYS_TR                 sequenceHandle,
+                                ESYS_TR                 keyHandle,
+                                ESYS_TR                 shandle1,
+                                ESYS_TR                 shandle2,
+                                ESYS_TR                 shandle3,
+                                const TPM2B_MAX_BUFFER *buffer);
+
+TSS2_RC
+Esys_SignSequenceComplete_Finish(ESYS_CONTEXT *esysContext, TPMT_SIGNATURE **signature);
+
+TSS2_RC
+Esys_SignSequenceStart(ESYS_CONTEXT              *esysContext,
+                       ESYS_TR                    keyHandle,
+                       ESYS_TR                    shandle1,
+                       ESYS_TR                    shandle2,
+                       ESYS_TR                    shandle3,
+                       const TPM2B_AUTH          *auth,
+                       const TPM2B_SIGNATURE_CTX *context,
+                       ESYS_TR                   *sequenceHandle);
+
+TSS2_RC
+Esys_SignSequenceStart_Async(ESYS_CONTEXT              *esysContext,
+                             ESYS_TR                    keyHandle,
+                             ESYS_TR                    shandle1,
+                             ESYS_TR                    shandle2,
+                             ESYS_TR                    shandle3,
+                             const TPM2B_AUTH          *auth,
+                             const TPM2B_SIGNATURE_CTX *context);
+
+TSS2_RC
+Esys_SignSequenceStart_Finish(ESYS_CONTEXT *esysContext, ESYS_TR *sequenceHandle);
 
 /* Table 101 - TPM2_SetCommandCodeAuditStatus Command */
 

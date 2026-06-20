@@ -181,6 +181,7 @@ Fapi_VerifySignature_Async(FAPI_CONTEXT  *context,
     command->signatureSize = signatureSize;
     command->digestSize = digestSize;
     memset(&command->key_object, 0, sizeof(IFAPI_OBJECT));
+    strdup_check(command->keyPath, keyPath, r, error_cleanup);
 
     /* Load the key for verification from the keystore. */
     r = ifapi_keystore_load_async(&context->keystore, &context->io, keyPath);
@@ -196,6 +197,8 @@ error_cleanup:
     command->signature = NULL;
     SAFE_FREE(digestBuffer);
     command->digest = NULL;
+    SAFE_FREE(command->keyPath);
+    command->keyPath = NULL;
     return r;
 }
 
@@ -237,9 +240,19 @@ Fapi_VerifySignature_Finish(FAPI_CONTEXT *context) {
     return_try_again(r);
     return_if_error_reset_state(r, "read_finish failed");
 
-    /* Verify the signature using a helper that tests all known signature schemes. */
-    r = ifapi_verify_signature(&command->key_object, command->signature, command->signatureSize,
-                               command->digest, command->digestSize);
+    if (command->key_object.misc.key.public.publicArea.type == TPM2_ALG_HASH_MLDSA) {
+        r = ifapi_pqc_verify_digest(context, command->keyPath, &command->key_object,
+                                    command->digest, command->digestSize, command->signature,
+                                    command->signatureSize);
+    } else if (command->key_object.misc.key.public.publicArea.type == TPM2_ALG_MLDSA) {
+        r = ifapi_pqc_verify_sequence(context, command->keyPath, &command->key_object,
+                                      command->digest, command->digestSize, command->signature,
+                                      command->signatureSize);
+    } else {
+        /* Classic ECC/RSA verify path unchanged from upstream. */
+        r = ifapi_verify_signature(&command->key_object, command->signature, command->signatureSize,
+                                   command->digest, command->digestSize);
+    }
     goto_if_error(r, "Verify signature.", cleanup);
 
 cleanup:
@@ -251,6 +264,8 @@ cleanup:
     ifapi_cleanup_ifapi_object(&context->createPrimary.pkey_object);
     SAFE_FREE(command->signature);
     SAFE_FREE(command->digest);
+    SAFE_FREE(command->keyPath);
+    command->keyPath = NULL;
     LOG_TRACE("finished");
     return r;
 }

@@ -125,3 +125,9 @@ EXPORTS
     Fapi_SetBranchCB
     Fapi_SetSignCB
     Fapi_SetPolicyActionCB
+    Fapi_Encapsulate
+    Fapi_Encapsulate_Async
+    Fapi_Encapsulate_Finish
+    Fapi_Decapsulate
+    Fapi_Decapsulate_Async
+    Fapi_Decapsulate_Finish

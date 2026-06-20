@@ -416,6 +416,9 @@ ifapi_json_TPM2_ALG_ID_serialize(const TPM2_ALG_ID in, json_object **jso) {
         { TPM2_ALG_CBC, "CBC" },
         { TPM2_ALG_CFB, "CFB" },
         { TPM2_ALG_ECB, "ECB" },
+        { TPM2_ALG_MLKEM, "mlkem" },
+        { TPM2_ALG_MLDSA, "mldsa" },
+        { TPM2_ALG_HASH_MLDSA, "hash_mldsa" },
     };
 
     for (size_t i = 0; i < sizeof(tab) / sizeof(tab[0]); i++) {
@@ -1287,7 +1290,8 @@ ifapi_json_TPMI_ALG_KDF_serialize(const TPMI_ALG_KDF in, json_object **jso) {
 TSS2_RC
 ifapi_json_TPMI_ALG_SIG_SCHEME_serialize(const TPMI_ALG_SIG_SCHEME in, json_object **jso) {
     CHECK_IN_LIST(TPMI_ALG_SIG_SCHEME, in, TPM2_ALG_RSASSA, TPM2_ALG_RSAPSS, TPM2_ALG_ECDSA,
-                  TPM2_ALG_ECDAA, TPM2_ALG_SM2, TPM2_ALG_ECSCHNORR, TPM2_ALG_HMAC, TPM2_ALG_NULL);
+                  TPM2_ALG_ECDAA, TPM2_ALG_SM2, TPM2_ALG_ECSCHNORR, TPM2_ALG_HMAC, TPM2_ALG_MLDSA,
+                  TPM2_ALG_HASH_MLDSA, TPM2_ALG_NULL);
     return ifapi_json_TPM2_ALG_ID_serialize(in, jso);
 }
 
@@ -1610,12 +1614,6 @@ ifapi_json_TPMS_ALG_PROPERTY_serialize(const TPMS_ALG_PROPERTY *in, json_object 
     return_if_null(in, "Bad reference.", TSS2_FAPI_RC_BAD_REFERENCE);
 
     TSS2_RC r;
-
-    if ((in->alg == TPM2_ALG_SHA3_256 || in->alg == TPM2_ALG_SHA3_384
-         || in->alg == TPM2_ALG_SHA3_512)) {
-        LOG_WARNING("SHA3 hash algs are not supported by TSS");
-        return TSS2_RC_SUCCESS;
-    }
 
     json_object *jso2;
     if (*jso == NULL)
@@ -3811,7 +3809,8 @@ ifapi_json_TPM2B_ENCRYPTED_SECRET_serialize(const TPM2B_ENCRYPTED_SECRET *in, js
 TSS2_RC
 ifapi_json_TPMI_ALG_PUBLIC_serialize(const TPMI_ALG_PUBLIC in, json_object **jso) {
     CHECK_IN_LIST(TPMI_ALG_PUBLIC, in, TPM2_ALG_RSA, TPM2_ALG_KEYEDHASH, TPM2_ALG_ECC,
-                  TPM2_ALG_SYMCIPHER, TPM2_ALG_NULL);
+                  TPM2_ALG_SYMCIPHER, TPM2_ALG_MLKEM, TPM2_ALG_MLDSA, TPM2_ALG_HASH_MLDSA,
+                  TPM2_ALG_NULL);
     return ifapi_json_TPM2_ALG_ID_serialize(in, jso);
 }
 

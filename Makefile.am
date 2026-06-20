@@ -276,8 +276,9 @@ lib_LTLIBRARIES += $(libtss2_mu)
 pkgconfig_DATA += lib/tss2-mu.pc
 EXTRA_DIST += lib/tss2-mu.map lib/tss2-mu.def src/tss2-mu/tss2-mu.vcxproj
 
-# Bump sys soname revision due to change in TPMU_CAPABILITY ABI
-src_tss2_mu_libtss2_mu_la_LDFLAGS = -version-info 0:1:0
+# Bump soname current due to PQC v185 ABI changes (TPMT_TK_VERIFIED,
+# TPMU_SIGNATURE, TPMU_ENCRYPTED_SECRET layout changes)
+src_tss2_mu_libtss2_mu_la_LDFLAGS = -version-info 1:0:0
 
 if HAVE_LD_VERSION_SCRIPT
 src_tss2_mu_libtss2_mu_la_LDFLAGS += -Wl,--version-script=$(srcdir)/lib/tss2-mu.map
@@ -589,8 +590,9 @@ endif # HAVE_LD_VERSION_SCRIPT
 
 # Bump sys soname current due to commit 1414f73902cd0c64e447522c64c8e439fa2074b7
 # Breaking the backwards compatibility of Tss2_Sys_ReadClock call.
-# Bump sys soname revision due to change in TPMU_CAPABILITY ABI
-src_tss2_sys_libtss2_sys_la_LDFLAGS += -version-info 1:1:0
+# Bump soname current due to PQC v185 ABI changes (TPMT_TK_VERIFIED,
+# TPMU_SIGNATURE, TPMU_ENCRYPTED_SECRET layout changes)
+src_tss2_sys_libtss2_sys_la_LDFLAGS += -version-info 2:0:0
 
 src_tss2_sys_libtss2_sys_la_LIBADD = $(libtss2_mu)
 src_tss2_sys_libtss2_sys_la_SOURCES = $(TSS2_SYS_SRC) \
@@ -621,8 +623,9 @@ if HAVE_LD_VERSION_SCRIPT
 src_tss2_esys_libtss2_esys_la_LDFLAGS += -Wl,--version-script=$(srcdir)/lib/tss2-esys.map
 endif # HAVE_LD_VERSION_SCRIPT
 
-# Bump sys soname due to change in TPMU_CAPABILITY ABI
-src_tss2_esys_libtss2_esys_la_LDFLAGS += -version-info 0:1:0
+# Bump soname current due to PQC v185 ABI changes (TPMT_TK_VERIFIED,
+# TPMU_SIGNATURE, TPMU_ENCRYPTED_SECRET layout changes)
+src_tss2_esys_libtss2_esys_la_LDFLAGS += -version-info 1:0:0
 
 src_tss2_esys_libtss2_esys_la_SOURCES = $(TSS2_ESYS_SRC) $(TSS2_ESYS_SRC_CRYPTO) \
     src/tss2-tcti/tctildr.c src/tss2-tcti/tctildr.h \
@@ -857,9 +860,9 @@ if HAVE_LD_VERSION_SCRIPT
 src_tss2_fapi_libtss2_fapi_la_LDFLAGS += -Wl,--version-script=$(srcdir)/lib/tss2-fapi.map
 endif # HAVE_LD_VERSION_SCRIPT
 
-# Bump soname current due to commit e0636dd6fbec4f286cc908117ecef4d820a50f79 breaking
-# The API and ABI of Fapi_CB_{Auth,Sign,Branch,PolicyAction}
-src_tss2_fapi_libtss2_fapi_la_LDFLAGS += -version-info 1:0:0
+# Bump soname current due to PQC v185 ABI changes (TPMT_TK_VERIFIED,
+# TPMU_SIGNATURE, TPMU_ENCRYPTED_SECRET layout changes)
+src_tss2_fapi_libtss2_fapi_la_LDFLAGS += -version-info 2:0:0
 
 if DOXYMAN
 DOXYMAN3 += \

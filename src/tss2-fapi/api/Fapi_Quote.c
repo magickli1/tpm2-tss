@@ -374,10 +374,20 @@ Fapi_Quote_Finish(FAPI_CONTEXT *context,
         goto_if_error(r, "Authorize key.", error_cleanup);
 
         /* Perform the Quote operation. */
-        r = Esys_Quote_Async(
-            context->esys, command->handle, auth_session, ENC_SESSION_IF_POLICY(auth_session),
-            ESYS_TR_NONE, &command->qualifyingData, &command->key_object->misc.key.signing_scheme,
-            &command->pcr_selection);
+        {
+            const TPMT_SIG_SCHEME *quote_scheme = &command->key_object->misc.key.signing_scheme;
+            TPMT_SIG_SCHEME        pqc_quote_scheme = { 0 };
+
+            if (ifapi_key_requires_pqc_quote_scheme(&command->key_object->misc.key)) {
+                r = ifapi_quote_sig_scheme(&command->key_object->misc.key, &pqc_quote_scheme);
+                goto_if_error(r, "Quote signature scheme.", error_cleanup);
+                quote_scheme = &pqc_quote_scheme;
+            }
+
+            r = Esys_Quote_Async(context->esys, command->handle, auth_session,
+                                 ENC_SESSION_IF_POLICY(auth_session), ESYS_TR_NONE,
+                                 &command->qualifyingData, quote_scheme, &command->pcr_selection);
+        }
         goto_if_error(r, "Error: PCR_Quote", error_cleanup);
 
         fallthrough;

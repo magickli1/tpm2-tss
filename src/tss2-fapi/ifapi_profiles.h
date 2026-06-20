@@ -18,6 +18,8 @@
  */
 typedef struct IFAPI_PROFILE {
     TPMI_ALG_PUBLIC      type;               /**< The algorithm used for key creation */
+    TPMI_ALG_PUBLIC      sign_type;          /**< Optional signing key type (v185 PQC) */
+    TPMI_ALG_PUBLIC      kem_type;           /**< Optional KEM key type for non-restricted decrypt keys */
     char                *srk_template;       /**< SRK template */
     char                *ek_template;        /**< EK template */
     char                *srk_description;    /**< SRK description */
@@ -43,6 +45,11 @@ typedef struct IFAPI_PROFILE {
     UINT32               newRecoveryTime;
     UINT32               lockoutRecovery;
     TPMI_YES_NO          ignore_ek_template;
+    TPMI_MLDSA_PARAMETER_SET mldsa_parameter_set;
+    TPMI_MLKEM_PARAMETER_SET mlkem_parameter_set;
+    TPMI_YES_NO              mldsa_allow_external_mu;
+    TPMI_ALG_HASH              mldsa_prehash_alg;
+    UINT32                     min_tpm_version;
 } IFAPI_PROFILE;
 
 /* An entry for the dictionary of loaded profiles */

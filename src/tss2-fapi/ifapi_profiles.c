@@ -12,6 +12,7 @@
 #include <stdint.h> // for uint8_t
 #include <stdlib.h> // for calloc, free, reallocarray
 #include <string.h> // for memset, strdup, strlen
+#include <strings.h> // for strcasecmp
 
 #include "fapi_int.h"                      // for IFAPI_FILE_DELIM_CHAR
 #include "ifapi_helpers.h"                 // for ifapi_cleanup_policy, ifa...
@@ -26,6 +27,59 @@
 
 #define PROFILES_EXTENSION ".json"
 #define PROFILES_PREFIX    "P_"
+
+static TSS2_RC
+ifapi_profile_parse_mldsa_fields(json_object *jso, IFAPI_PROFILE *out)
+{
+    json_object *jso2;
+    TSS2_RC      r;
+
+    if (ifapi_get_sub_object(jso, "mldsa_parameter_set", &jso2)) {
+        const char *ps = json_object_get_string(jso2);
+
+        if (!strcasecmp(ps, "mldsa_44")) {
+            out->mldsa_parameter_set = TPM2_MLDSA_44;
+        } else if (!strcasecmp(ps, "mldsa_65")) {
+            out->mldsa_parameter_set = TPM2_MLDSA_65;
+        } else if (!strcasecmp(ps, "mldsa_87")) {
+            out->mldsa_parameter_set = TPM2_MLDSA_87;
+        } else {
+            return_error(TSS2_FAPI_RC_BAD_VALUE, "Invalid mldsa_parameter_set.");
+        }
+    }
+    if (ifapi_get_sub_object(jso, "mldsa_allow_external_mu", &jso2)) {
+        r = ifapi_json_TPMI_YES_NO_deserialize(jso2, &out->mldsa_allow_external_mu);
+        return_if_error(r, "Bad value for field \"mldsa_allow_external_mu\".");
+    }
+    if (ifapi_get_sub_object(jso, "mldsa_prehash_alg", &jso2)) {
+        r = ifapi_json_TPMI_ALG_HASH_deserialize(jso2, &out->mldsa_prehash_alg);
+        return_if_error(r, "Bad value for field \"mldsa_prehash_alg\".");
+    }
+
+    return TSS2_RC_SUCCESS;
+}
+
+static TSS2_RC
+ifapi_profile_parse_mlkem_fields(json_object *jso, IFAPI_PROFILE *out)
+{
+    json_object *jso2;
+
+    if (ifapi_get_sub_object(jso, "mlkem_parameter_set", &jso2)) {
+        const char *ps = json_object_get_string(jso2);
+
+        if (!strcasecmp(ps, "mlkem_512")) {
+            out->mlkem_parameter_set = TPM2_MLKEM_512;
+        } else if (!strcasecmp(ps, "mlkem_768")) {
+            out->mlkem_parameter_set = TPM2_MLKEM_768;
+        } else if (!strcasecmp(ps, "mlkem_1024")) {
+            out->mlkem_parameter_set = TPM2_MLKEM_1024;
+        } else {
+            return_error(TSS2_FAPI_RC_BAD_VALUE, "Invalid mlkem_parameter_set.");
+        }
+    }
+
+    return TSS2_RC_SUCCESS;
+}
 
 static TSS2_RC ifapi_profile_json_deserialize(json_object *jso, IFAPI_PROFILE *profile);
 
@@ -339,6 +393,16 @@ ifapi_profile_json_deserialize(json_object *jso, IFAPI_PROFILE *out) {
     r = ifapi_json_TPMI_ALG_PUBLIC_deserialize(jso2, &out->type);
     return_if_error(r, "Bad value for field \"type\".");
 
+    if (ifapi_get_sub_object(jso, "sign_type", &jso2)) {
+        r = ifapi_json_TPMI_ALG_PUBLIC_deserialize(jso2, &out->sign_type);
+        return_if_error(r, "Bad value for field \"sign_type\".");
+    }
+
+    if (ifapi_get_sub_object(jso, "kem_type", &jso2)) {
+        r = ifapi_json_TPMI_ALG_PUBLIC_deserialize(jso2, &out->kem_type);
+        return_if_error(r, "Bad value for field \"kem_type\".");
+    }
+
     if (!ifapi_get_sub_object(jso, "srk_template", &jso2)) {
         LOG_ERROR("Field \"srk_template\" not found.");
         return TSS2_FAPI_RC_BAD_VALUE;
@@ -444,6 +508,28 @@ ifapi_profile_json_deserialize(json_object *jso, IFAPI_PROFILE *out) {
         }
         r = ifapi_json_TPMI_ECC_CURVE_deserialize(jso2, &out->curveID);
         return_if_error(r, "Bad value for field \"curveID\".");
+    } else if (out->type == TPM2_ALG_MLDSA || out->type == TPM2_ALG_HASH_MLDSA) {
+        r = ifapi_profile_parse_mldsa_fields(jso, out);
+        return_if_error(r, "Bad value for ML-DSA profile fields.");
+    } else if (out->type == TPM2_ALG_MLKEM) {
+        r = ifapi_profile_parse_mlkem_fields(jso, out);
+        return_if_error(r, "Bad value for ML-KEM profile fields.");
+    }
+
+    /* Hybrid profiles keep base type (ecc/rsa) and override sign_type/kem_type. */
+    if ((out->sign_type == TPM2_ALG_MLDSA || out->sign_type == TPM2_ALG_HASH_MLDSA)
+        && out->type != TPM2_ALG_MLDSA && out->type != TPM2_ALG_HASH_MLDSA) {
+        r = ifapi_profile_parse_mldsa_fields(jso, out);
+        return_if_error(r, "Bad value for ML-DSA profile fields.");
+    }
+    if (out->kem_type == TPM2_ALG_MLKEM && out->type != TPM2_ALG_MLKEM) {
+        r = ifapi_profile_parse_mlkem_fields(jso, out);
+        return_if_error(r, "Bad value for ML-KEM profile fields.");
+    }
+
+    if (ifapi_get_sub_object(jso, "min_tpm_version", &jso2)) {
+        r = ifapi_json_UINT32_deserialize(jso2, &out->min_tpm_version);
+        return_if_error(r, "Bad value for field \"min_tpm_version\".");
     }
 
     if (!ifapi_get_sub_object(jso, "session_symmetric", &jso2)) {

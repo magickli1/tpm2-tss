@@ -67,6 +67,12 @@
         Fapi_Decrypt;
         Fapi_Decrypt_Async;
         Fapi_Decrypt_Finish;
+        Fapi_Encapsulate;
+        Fapi_Encapsulate_Async;
+        Fapi_Encapsulate_Finish;
+        Fapi_Decapsulate;
+        Fapi_Decapsulate_Async;
+        Fapi_Decapsulate_Finish;
         Fapi_SetCertificate;
         Fapi_SetCertificate_Async;
         Fapi_SetCertificate_Finish;

@@ -549,6 +549,46 @@ MAKE_FAPI_3(Fapi_Decrypt_Async,
             size_t,
             cipherTextSize);
 MAKE_FAPI_2(Fapi_Decrypt_Finish, uint8_t **, plainText, size_t *, plainTextSize);
+MAKE_FAPI_5(Fapi_Encapsulate,
+            char const *,
+            keyPath,
+            uint8_t **,
+            sharedSecret,
+            size_t *,
+            sharedSecretSize,
+            uint8_t **,
+            cipherText,
+            size_t *,
+            cipherTextSize);
+MAKE_FAPI_1(Fapi_Encapsulate_Async, char const *, keyPath);
+MAKE_FAPI_4(Fapi_Encapsulate_Finish,
+            uint8_t **,
+            sharedSecret,
+            size_t *,
+            sharedSecretSize,
+            uint8_t **,
+            cipherText,
+            size_t *,
+            cipherTextSize);
+MAKE_FAPI_5(Fapi_Decapsulate,
+            char const *,
+            keyPath,
+            uint8_t const *,
+            cipherText,
+            size_t,
+            cipherTextSize,
+            uint8_t **,
+            sharedSecret,
+            size_t *,
+            sharedSecretSize);
+MAKE_FAPI_3(Fapi_Decapsulate_Async,
+            char const *,
+            keyPath,
+            uint8_t const *,
+            cipherText,
+            size_t,
+            cipherTextSize);
+MAKE_FAPI_2(Fapi_Decapsulate_Finish, uint8_t **, sharedSecret, size_t *, sharedSecretSize);
 MAKE_FAPI_2(Fapi_SetCertificate, char const *, path, char const *, x509certData);
 MAKE_FAPI_2(Fapi_SetCertificate_Async, char const *, path, char const *, x509certData);
 MAKE_FAPI_0(Fapi_SetCertificate_Finish);

@@ -294,14 +294,25 @@ Fapi_DigestAndSign_Finish(FAPI_CONTEXT *context,
         return_try_again(r);
         goto_if_error(r, "Fapi load key.", cleanup);
 
+        if (command->key_object->misc.key.public.publicArea.type == TPM2_ALG_MLDSA) {
+            context->state = KEY_DIGEST_AND_SIGN_WAIT_FOR_SIGN;
+            return TSS2_FAPI_RC_TRY_AGAIN;
+        }
         fallthrough;
 
     statecase(context->state, KEY_DIGEST_AND_SIGN_COMPUTE_HASH);
-        /* Compute the digest of the passed data */
-
-        r = Esys_HashSequenceStart_Async(context->esys, ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE,
-                                         &nullAuth,
-                                         command->key_object->misc.key.public.publicArea.nameAlg);
+        /* HashML-DSA uses the key prehash algorithm; all other keys keep nameAlg. */
+        if (command->key_object->misc.key.public.publicArea.type == TPM2_ALG_HASH_MLDSA) {
+            r = Esys_HashSequenceStart_Async(
+                context->esys, ESYS_TR_NONE, ESYS_TR_NONE, ESYS_TR_NONE, &nullAuth,
+                command->key_object->misc.key.public.publicArea.parameters.hash_mldsaDetail
+                    .hashAlg);
+        } else {
+            r = Esys_HashSequenceStart_Async(context->esys, ESYS_TR_NONE, ESYS_TR_NONE,
+                                             ESYS_TR_NONE, &nullAuth,
+                                             command->key_object->misc.key.public.publicArea
+                                                 .nameAlg);
+        }
         goto_if_error(r, "Esys_HashSequenceStart_Async", cleanup);
 
         fallthrough;
@@ -361,10 +372,17 @@ Fapi_DigestAndSign_Finish(FAPI_CONTEXT *context,
 
     statecase(context->state, KEY_DIGEST_AND_SIGN_WAIT_FOR_SIGN);
         /* Perform the signing operation using a helper. */
-        r = ifapi_key_sign(context, command->key_object, command->padding, &command->digest,
-                           command->validation, &command->tpm_signature,
-                           publicKey ? &command->publicKey : NULL,
-                           (certificate) ? &command->certificate : NULL);
+        if (command->key_object->misc.key.public.publicArea.type == TPM2_ALG_MLDSA) {
+            r = ifapi_key_sign(context, command->key_object, command->padding, &command->digest,
+                               command->validation, &command->tpm_signature,
+                               publicKey ? &command->publicKey : NULL,
+                               (certificate) ? &command->certificate : NULL, true);
+        } else {
+            r = ifapi_key_sign(context, command->key_object, command->padding, &command->digest,
+                               command->validation, &command->tpm_signature,
+                               publicKey ? &command->publicKey : NULL,
+                               (certificate) ? &command->certificate : NULL, false);
+        }
         return_try_again(r);
         SAFE_FREE(command->validation);
         goto_if_error(r, "Fapi sign.", cleanup);

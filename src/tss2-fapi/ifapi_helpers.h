@@ -107,6 +107,12 @@ ifapi_compute_quote_info(IFAPI_OBJECT    *sig_key_object,
                          FAPI_QUOTE_INFO *fapi_quote_info,
                          char           **quoteInfo);
 
+bool
+ifapi_key_requires_pqc_quote_scheme(const IFAPI_KEY *key);
+
+TSS2_RC
+ifapi_quote_sig_scheme(const IFAPI_KEY *key, TPMT_SIG_SCHEME *sig_scheme);
+
 TSS2_RC
 ifapi_get_quote_info(char const      *quoteInfo,
                      TPM2B_ATTEST    *tpm_quoted,

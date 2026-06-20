@@ -282,7 +282,15 @@ tss2_fmt1_err_strs_get(TSS2_RC error) {
         /* 0x28 - TPM2_RC_FW_LIMITED */
         "the command requires the firmware secret but the firmware secret is unavailable",
         /* 0x29 - TPM2_RC_SVN_LIMITED */
-        "the command requires the firmware SVN secret but the firmware SVN secret is unavailable"
+        "the command requires the firmware SVN secret but the firmware SVN secret is unavailable",
+        /* 0x2A - EMPTY */
+        NULL,
+        /* 0x2B - TPM2_RC_EXT_MU */
+        "external MU required but key allowExternalMu is not set",
+        /* 0x2C - TPM2_RC_ONE_SHOT_SIGNATURE */
+        "pure ML-DSA sign sequence called SequenceUpdate",
+        /* 0x2D - TPM2_RC_SIGN_CONTEXT_KEY */
+        "context-bound key handle mismatch on sequence complete"
     };
 
     if (error < ARRAY_LEN(fmt1_err_strs)) {

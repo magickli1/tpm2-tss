@@ -277,7 +277,15 @@ GetNumHandles(TPM2_CC commandCode, bool req) {
                                                     { TPM2_CC_ACT_SetTimeout, 1, 0 },
                                                     { TPM2_CC_CertifyX509, 2, 0 },
                                                     { TPM2_CC_ECC_Encrypt, 1, 0 },
-                                                    { TPM2_CC_ECC_Decrypt, 1, 0 } };
+                                                    { TPM2_CC_ECC_Decrypt, 1, 0 },
+                                                    { TPM2_CC_VerifySequenceComplete, 2, 0 },
+                                                    { TPM2_CC_SignSequenceComplete, 2, 0 },
+                                                    { TPM2_CC_VerifyDigestSignature, 1, 0 },
+                                                    { TPM2_CC_SignDigest, 1, 0 },
+                                                    { TPM2_CC_Encapsulate, 1, 0 },
+                                                    { TPM2_CC_Decapsulate, 1, 0 },
+                                                    { TPM2_CC_VerifySequenceStart, 1, 1 },
+                                                    { TPM2_CC_SignSequenceStart, 1, 1 } };
 
     size_t i;
 
@@ -353,6 +361,21 @@ ValidatePublicTemplate(const TPM2B_PUBLIC *pub) {
     case TPM2_ALG_SYMCIPHER:
         if (IsAlgorithmWeak(tmpl->type, tmpl->parameters.symDetail.sym.keyBits.sym))
             return TSS2_SYS_RC_BAD_VALUE;
+        break;
+    case TPM2_ALG_MLKEM:
+        if (!(tmpl->objectAttributes & TPMA_OBJECT_DECRYPT) ||
+            (tmpl->objectAttributes & TPMA_OBJECT_SIGN_ENCRYPT)) {
+            LOG_ERROR("ML-KEM key must have decrypt and must not sign");
+            return TSS2_SYS_RC_BAD_VALUE;
+        }
+        break;
+    case TPM2_ALG_MLDSA:
+    case TPM2_ALG_HASH_MLDSA:
+        if (!(tmpl->objectAttributes & TPMA_OBJECT_SIGN_ENCRYPT) ||
+            (tmpl->objectAttributes & TPMA_OBJECT_DECRYPT)) {
+            LOG_ERROR("ML-DSA key must have sign and must not decrypt");
+            return TSS2_SYS_RC_BAD_VALUE;
+        }
         break;
     default:
         if (IsAlgorithmWeak(tmpl->type, 0))

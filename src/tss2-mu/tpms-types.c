@@ -1582,6 +1582,62 @@ TPMS_MARSHAL_0(TPMS_EMPTY);
 
 TPMS_UNMARSHAL_0(TPMS_EMPTY);
 
+TPMS_MARSHAL_2(TPMS_MLDSA_PARMS,
+               parameterSet,
+               VAL,
+               Tss2_MU_UINT16_Marshal,
+               allowExternalMu,
+               VAL,
+               Tss2_MU_UINT8_Marshal)
+
+TPMS_UNMARSHAL_2(TPMS_MLDSA_PARMS,
+                 parameterSet,
+                 Tss2_MU_UINT16_Unmarshal,
+                 allowExternalMu,
+                 Tss2_MU_UINT8_Unmarshal)
+
+TPMS_MARSHAL_2(TPMS_HASH_MLDSA_PARMS,
+               parameterSet,
+               VAL,
+               Tss2_MU_UINT16_Marshal,
+               hashAlg,
+               VAL,
+               Tss2_MU_UINT16_Marshal)
+
+TPMS_UNMARSHAL_2(TPMS_HASH_MLDSA_PARMS,
+                 parameterSet,
+                 Tss2_MU_UINT16_Unmarshal,
+                 hashAlg,
+                 Tss2_MU_UINT16_Unmarshal)
+
+TPMS_MARSHAL_2(TPMS_MLKEM_PARMS,
+               symmetric,
+               ADDR,
+               Tss2_MU_TPMT_SYM_DEF_OBJECT_Marshal,
+               parameterSet,
+               VAL,
+               Tss2_MU_UINT16_Marshal)
+
+TPMS_UNMARSHAL_2(TPMS_MLKEM_PARMS,
+                 symmetric,
+                 Tss2_MU_TPMT_SYM_DEF_OBJECT_Unmarshal,
+                 parameterSet,
+                 Tss2_MU_UINT16_Unmarshal)
+
+TPMS_MARSHAL_2(TPMS_SIGNATURE_HASH_MLDSA,
+               hash,
+               VAL,
+               Tss2_MU_UINT16_Marshal,
+               signature,
+               ADDR,
+               Tss2_MU_TPM2B_SIGNATURE_MLDSA_Marshal)
+
+TPMS_UNMARSHAL_2(TPMS_SIGNATURE_HASH_MLDSA,
+                 hash,
+                 Tss2_MU_UINT16_Unmarshal,
+                 signature,
+                 Tss2_MU_TPM2B_SIGNATURE_MLDSA_Unmarshal)
+
 TPMS_MARSHAL_2(TPMS_AC_OUTPUT, tag, VAL, Tss2_MU_UINT32_Marshal, data, VAL, Tss2_MU_UINT32_Marshal)
 
 TPMS_UNMARSHAL_2(TPMS_AC_OUTPUT, tag, Tss2_MU_UINT32_Unmarshal, data, Tss2_MU_UINT32_Unmarshal)

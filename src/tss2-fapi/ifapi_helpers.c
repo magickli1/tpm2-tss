@@ -1696,6 +1696,24 @@ ifapi_tpm_to_fapi_signature(IFAPI_OBJECT   *sig_key_object,
         /* For ECC signatures the TPM signaute has to be converted to DER. */
         r = ifapi_tpm_ecc_sig_to_der(tpm_signature, signature, signatureSize);
         goto_if_error(r, "Conversion to DER failed", error_cleanup);
+    } else if (sig_key_object->misc.key.public.publicArea.type == TPM2_ALG_HASH_MLDSA) {
+        *signatureSize = tpm_signature->signature.hash_mldsa.signature.size;
+        if (*signatureSize > sizeof(tpm_signature->signature.hash_mldsa.signature.buffer)) {
+            goto_error(r, TSS2_FAPI_RC_BAD_VALUE, "Invalid PQC signature size", error_cleanup);
+        }
+        *signature = malloc(*signatureSize);
+        goto_if_null(*signature, "Out of memory.", TSS2_FAPI_RC_MEMORY, error_cleanup);
+
+        memcpy(*signature, tpm_signature->signature.hash_mldsa.signature.buffer, *signatureSize);
+    } else if (sig_key_object->misc.key.public.publicArea.type == TPM2_ALG_MLDSA) {
+        *signatureSize = tpm_signature->signature.mldsa.size;
+        if (*signatureSize > sizeof(tpm_signature->signature.mldsa.buffer)) {
+            goto_error(r, TSS2_FAPI_RC_BAD_VALUE, "Invalid PQC signature size", error_cleanup);
+        }
+        *signature = malloc(*signatureSize);
+        goto_if_null(*signature, "Out of memory.", TSS2_FAPI_RC_MEMORY, error_cleanup);
+
+        memcpy(*signature, tpm_signature->signature.mldsa.buffer, *signatureSize);
     } else {
         goto_error(r, TSS2_FAPI_RC_BAD_VALUE, "Unknown signature scheme", error_cleanup);
     }
@@ -1727,6 +1745,41 @@ error_cleanup:
  * @retval TSS2_FAPI_RC_GENERAL_FAILURE if an internal error occurred.
  * @retval TSS2_FAPI_RC_BAD_REFERENCE a invalid null pointer is passed.
  */
+bool
+ifapi_key_requires_pqc_quote_scheme(const IFAPI_KEY *key)
+{
+    TPMI_ALG_PUBLIC type = key->public.publicArea.type;
+
+    return type == TPM2_ALG_MLDSA || type == TPM2_ALG_HASH_MLDSA;
+}
+
+/** Quote signature scheme for ML-DSA keys (TCG Errata 2.6).
+ *
+ * Pure ML-DSA Quote uses nameAlg; HashML-DSA uses the key prehash algorithm.
+ * Non-PQC keys must keep key->signing_scheme unchanged for Quote.
+ */
+TSS2_RC
+ifapi_quote_sig_scheme(const IFAPI_KEY *key, TPMT_SIG_SCHEME *sig_scheme)
+{
+    TPMI_ALG_PUBLIC type = key->public.publicArea.type;
+
+    if (!ifapi_key_requires_pqc_quote_scheme(key))
+        return_error(TSS2_FAPI_RC_BAD_VALUE, "PQC quote scheme requested for non-PQC key.");
+
+    *sig_scheme = key->signing_scheme;
+
+    if (type == TPM2_ALG_MLDSA) {
+        sig_scheme->scheme = key->signing_scheme.scheme;
+        sig_scheme->details.any.hashAlg = key->public.publicArea.nameAlg;
+    } else {
+        sig_scheme->scheme = TPM2_ALG_HASH_MLDSA;
+        sig_scheme->details.any.hashAlg
+            = key->public.publicArea.parameters.hash_mldsaDetail.hashAlg;
+    }
+
+    return TSS2_RC_SUCCESS;
+}
+
 TSS2_RC
 ifapi_compute_quote_info(IFAPI_OBJECT    *sig_key_object,
                          TPM2B_ATTEST    *tpm_quoted,
@@ -1743,8 +1796,12 @@ ifapi_compute_quote_info(IFAPI_OBJECT    *sig_key_object,
     return_if_error(r, "Unmarshal TPMS_ATTEST.");
 
     fapi_quote_info->attest = attest_struct;
-    /* The signate scheme will be taken from the key used for qoting. */
-    fapi_quote_info->sig_scheme = sig_key_object->misc.key.signing_scheme;
+    if (ifapi_key_requires_pqc_quote_scheme(&sig_key_object->misc.key)) {
+        r = ifapi_quote_sig_scheme(&sig_key_object->misc.key, &fapi_quote_info->sig_scheme);
+        return_if_error(r, "Quote signature scheme.");
+    } else {
+        fapi_quote_info->sig_scheme = sig_key_object->misc.key.signing_scheme;
+    }
     r = ifapi_json_FAPI_QUOTE_INFO_serialize(fapi_quote_info, &jso);
     return_if_error(r, "Conversion to TPM2B_ATTEST to JSON.");
 
@@ -2265,6 +2322,10 @@ ifapi_calculate_pcr_digest(json_object *jso_event_list, const FAPI_QUOTE_INFO *q
         break;
     case TPM2_ALG_SM2:
         pcr_digest_hash_alg = quote_info->sig_scheme.details.sm2.hashAlg;
+        break;
+    case TPM2_ALG_MLDSA:
+    case TPM2_ALG_HASH_MLDSA:
+        pcr_digest_hash_alg = quote_info->sig_scheme.details.any.hashAlg;
         break;
     default:
         LOG_ERROR("Unknown sig scheme");

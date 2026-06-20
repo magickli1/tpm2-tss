@@ -747,7 +747,7 @@ ifapi_json_TPM2_ALG_ID_deserialize(json_object *jso, TPM2_ALG_ID *out) {
         { TPM2_ALG_HMAC, "HMAC" },         { TPM2_ALG_AES, "AES" },
         { TPM2_ALG_MGF1, "MGF1" },         { TPM2_ALG_KEYEDHASH, "KEYEDHASH" },
         { TPM2_ALG_XOR, "XOR" },           { TPM2_ALG_SHA256, "SHA256" },
-        { TPM2_ALG_SHA384, "SHA384" },     { TPM2_ALG_SHA512, "SHA512" },
+        { TPM2_ALG_SHA384, "SHA384" },             { TPM2_ALG_SHA512, "SHA512" },
         { TPM2_ALG_NULL, "NULL" },         { TPM2_ALG_SM3_256, "SM3_256" },
         { TPM2_ALG_SM4, "SM4" },           { TPM2_ALG_RSASSA, "RSASSA" },
         { TPM2_ALG_RSAES, "RSAES" },       { TPM2_ALG_RSAPSS, "RSAPSS" },
@@ -760,6 +760,8 @@ ifapi_json_TPM2_ALG_ID_deserialize(json_object *jso, TPM2_ALG_ID *out) {
         { TPM2_ALG_CAMELLIA, "CAMELLIA" }, { TPM2_ALG_CTR, "CTR" },
         { TPM2_ALG_OFB, "OFB" },           { TPM2_ALG_CBC, "CBC" },
         { TPM2_ALG_CFB, "CFB" },           { TPM2_ALG_ECB, "ECB" },
+        { TPM2_ALG_MLKEM, "MLKEM" },       { TPM2_ALG_MLDSA, "MLDSA" },
+        { TPM2_ALG_HASH_MLDSA, "HASH_MLDSA" },
     };
 
     const char *s = json_object_get_string(jso);
@@ -1562,7 +1564,7 @@ TSS2_RC
 ifapi_json_TPMI_ALG_SIG_SCHEME_deserialize(json_object *jso, TPMI_ALG_SIG_SCHEME *out) {
     SUBTYPE_FILTER(TPMI_ALG_SIG_SCHEME, TPM2_ALG_ID, TPM2_ALG_RSASSA, TPM2_ALG_RSAPSS,
                    TPM2_ALG_ECDSA, TPM2_ALG_ECDAA, TPM2_ALG_SM2, TPM2_ALG_ECSCHNORR, TPM2_ALG_HMAC,
-                   TPM2_ALG_NULL);
+                   TPM2_ALG_MLDSA, TPM2_ALG_HASH_MLDSA, TPM2_ALG_NULL);
 }
 
 /** Deserialize a TPMU_HA json object.
@@ -3737,7 +3739,8 @@ ifapi_json_TPM2B_ENCRYPTED_SECRET_deserialize(json_object *jso, TPM2B_ENCRYPTED_
 TSS2_RC
 ifapi_json_TPMI_ALG_PUBLIC_deserialize(json_object *jso, TPMI_ALG_PUBLIC *out) {
     SUBTYPE_FILTER(TPMI_ALG_PUBLIC, TPM2_ALG_ID, TPM2_ALG_RSA, TPM2_ALG_KEYEDHASH, TPM2_ALG_ECC,
-                   TPM2_ALG_SYMCIPHER, TPM2_ALG_NULL);
+                   TPM2_ALG_SYMCIPHER, TPM2_ALG_MLKEM, TPM2_ALG_MLDSA, TPM2_ALG_HASH_MLDSA,
+                   TPM2_ALG_NULL);
 }
 
 /** Deserialize a TPMU_PUBLIC_ID json object.

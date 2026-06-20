@@ -10,6 +10,10 @@
 #include <inttypes.h> // for uint8_t, PRIx32, PRIx8, PRIx16
 #include <stdlib.h>   // for calloc
 
+#ifdef OSSL
+#include <openssl/crypto.h> // for OPENSSL_cleanse
+#endif
+
 #include "esys_crypto.h" // for iesys_crypto_hash_get_digest_size, iesys_cr...
 #include "esys_int.h"    // for RSRC_NODE_T, ESYS_CONTEXT, _ESYS_STATE_INIT
 #include "esys_iutil.h"
@@ -422,6 +426,49 @@ iesys_compute_encrypted_salt(ESYS_CONTEXT           *esys_context,
         return_if_error(r, "During KDFe computation.");
         esys_context->salt.size = keyHash_size;
         break;
+    case TPM2_ALG_MLKEM: {
+        TPM2B_SHARED_SECRET  sharedSecret = { .size = sizeof(sharedSecret.buffer) };
+        TPM2B_KEM_CIPHERTEXT ciphertext = { .size = sizeof(ciphertext.buffer) };
+        TSS2L_SYS_AUTH_COMMAND  sessions_cmd = {
+            .auths = { { .sessionHandle = TPM2_RH_PW,
+                         .sessionAttributes = TPMA_SESSION_CONTINUESESSION,
+                         .hmac = { .size = 0 } } },
+            .count = 1
+        };
+        TSS2L_SYS_AUTH_RESPONSE sessions_rsp = { .count = 0 };
+
+        /* Tss2_Sys_Encapsulate is a synchronous one-shot call that does not
+         * retry on TPM2_RC_YIELDED / TPM2_RC_RETRY, so retry here. */
+        for (int retries = 0; retries < 3; retries++) {
+            r = Tss2_Sys_Encapsulate(esys_context->sys, tpmKeyNode->rsrc.handle, &sessions_cmd,
+                                     &sharedSecret, &ciphertext, &sessions_rsp);
+            if (r != TPM2_RC_YIELDED && r != TPM2_RC_RETRY)
+                break;
+        }
+        return_if_error(r, "Encapsulate for ML-KEM session salt");
+
+        if (sharedSecret.size == 0 || sharedSecret.size > sizeof(esys_context->salt.buffer)) {
+            LOG_ERROR("Invalid ML-KEM shared secret size %u", sharedSecret.size);
+#ifdef OSSL
+            OPENSSL_cleanse(sharedSecret.buffer, sizeof(sharedSecret.buffer));
+#endif
+            return TSS2_ESYS_RC_GENERAL_FAILURE;
+        }
+        esys_context->salt.size = sharedSecret.size;
+        memcpy(esys_context->salt.buffer, sharedSecret.buffer, sharedSecret.size);
+#ifdef OSSL
+        OPENSSL_cleanse(sharedSecret.buffer, sizeof(sharedSecret.buffer));
+#endif
+
+        if (ciphertext.size == 0 || ciphertext.size > sizeof(encryptedSalt->secret)) {
+            LOG_ERROR("Invalid ML-KEM ciphertext size %u", ciphertext.size);
+            return TSS2_ESYS_RC_GENERAL_FAILURE;
+        }
+        encryptedSalt->size = ciphertext.size;
+        memcpy(encryptedSalt->secret, ciphertext.buffer, ciphertext.size);
+        LOGBLOB_DEBUG(encryptedSalt->secret, encryptedSalt->size, "IESYS ML-KEM encrypted salt");
+        break;
+    }
     default:
         LOG_ERROR("Not implemented");
         return TSS2_ESYS_RC_GENERAL_FAILURE;

@@ -301,7 +301,7 @@ Fapi_Sign_Finish(FAPI_CONTEXT *context,
         /* Perform the signing operation using a helper. */
         r = ifapi_key_sign(context, command->key_object, command->padding, &command->digest, NULL,
                            &command->tpm_signature, publicKey ? &command->publicKey : NULL,
-                           (certificate) ? &command->certificate : NULL);
+                           (certificate) ? &command->certificate : NULL, false);
         return_try_again(r);
         goto_if_error(r, "Fapi sign.", cleanup);
 

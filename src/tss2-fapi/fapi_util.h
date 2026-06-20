@@ -121,7 +121,41 @@ ifapi_key_sign(FAPI_CONTEXT      *context,
                TPMT_TK_HASHCHECK *validation,
                TPMT_SIGNATURE   **tpm_signature,
                char             **publicKey,
-               char             **certificate);
+               char             **certificate,
+               bool               sign_mldsa_message);
+
+TSS2_RC
+ifapi_pqc_verify_digest(FAPI_CONTEXT *context,
+                        const char   *keyPath,
+                        IFAPI_OBJECT *key_object,
+                        const uint8_t *digest,
+                        size_t         digest_size,
+                        const uint8_t *signature,
+                        size_t         signature_size);
+
+TSS2_RC
+ifapi_pqc_verify_quote(FAPI_CONTEXT       *context,
+                       const char         *keyPath,
+                       IFAPI_OBJECT       *key_object,
+                       const uint8_t      *attest,
+                       size_t              attest_size,
+                       const uint8_t      *signature,
+                       size_t              signature_size);
+
+TSS2_RC
+ifapi_pqc_verify_sequence(FAPI_CONTEXT *context,
+                            const char   *keyPath,
+                            IFAPI_OBJECT *key_object,
+                            const uint8_t *message,
+                            size_t         message_size,
+                            const uint8_t *signature,
+                            size_t         signature_size);
+
+TSS2_RC
+ifapi_signature_bytes_to_tpm(TPMI_ALG_PUBLIC  key_type,
+                              const uint8_t   *signature,
+                              size_t           signature_size,
+                              TPMT_SIGNATURE  *tpm_signature);
 
 TSS2_RC
 ifapi_authorize_object(FAPI_CONTEXT *context, IFAPI_OBJECT *object, ESYS_TR *session);

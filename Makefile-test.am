@@ -111,6 +111,9 @@ TESTS_UNIT  = \
     test/unit/TPML-marshal \
     test/unit/TPMT-marshal \
     test/unit/TPMU-marshal \
+    test/unit/mu-mlkem \
+    test/unit/mu-mldsa \
+    test/unit/sys-pqc-prepare \
     test/unit/sys-execute \
     test/unit/dlopen_tss2_rc \
     test/unit/tss2_rc
@@ -172,6 +175,7 @@ if FAPI
 TESTS_CFLAGS +=  -DTOP_SOURCEDIR"=\"$(top_srcdir)\""
 TESTS_UNIT += \
     test/unit/fapi-json \
+    test/unit/fapi-json-pqc \
     test/unit/fapi-helpers \
     test/unit/fapi-io \
     test/unit/fapi-profiles \
@@ -217,6 +221,9 @@ TESTS_INTEGRATION += \
     test/integration/sys-mac.int \
     test/integration/sys-hmac.int \
     test/integration/sys-ecc-encrypt-decrypt.int \
+    test/integration/sys-encapsulate.int \
+    test/integration/sys-sign-digest.int \
+    test/integration/sys-sign-sequence.int \
     test/tpmclient/tpmclient.int
 endif # !TESTDEVICE
 
@@ -319,6 +326,14 @@ ESYS_TESTS_INTEGRATION_OPTIONAL = \
     test/integration/esys-duplicate.int \
     test/integration/esys-encrypt-decrypt.int \
     test/integration/esys-encrypt-decrypt2.int \
+    test/integration/esys-encapsulate.int \
+    test/integration/esys-sign-digest.int \
+    test/integration/esys-sign-sequence.int \
+    test/integration/esys-sign-deprecated.int \
+    test/integration/esys-get-capability-pqc.int \
+    test/integration/esys-mldsa87-buffer.int \
+    test/integration/esys-quote-mldsa.int \
+    test/integration/esys-mlkem-session.int \
     test/integration/esys-get-time.int \
     test/integration/esys-hierarchy-control.int \
     test/integration/esys-nv-certify.int \
@@ -376,6 +391,10 @@ FAPI_TESTS_INTEGRATION = \
     test/integration/fapi-key-create-sign-persistent-key.fint \
     test/integration/fapi-key-create-sign-password-provision.fint \
     test/integration/fapi-key-create-sign-rsa.fint \
+    test/integration/fapi-key-create-mldsa.fint \
+    test/integration/fapi-key-create-mldsa-sequence.fint \
+    test/integration/fapi-key-create-mlkem.fint \
+    test/integration/fapi-quote-mldsa.fint \
     test/integration/fapi-key-create-policy-authorize-sign.fint \
     test/integration/fapi-key-create-policy-authorize-rsa-pem-sign.fint \
     test/integration/fapi-key-create-policy-authorize-ecc-pem-sign.fint \
@@ -769,6 +788,21 @@ test_unit_TPMU_marshal_LDADD   = $(CMOCKA_LIBS) $(libtss2_mu)
 test_unit_TPMU_marshal_SOURCES = test/unit/TPMU-marshal.c \
     test/helper/cmocka_all.h
 
+test_unit_mu_mlkem_CFLAGS  = $(CMOCKA_CFLAGS) $(TESTS_CFLAGS)
+test_unit_mu_mlkem_LDADD   = $(CMOCKA_LIBS) $(libtss2_mu)
+test_unit_mu_mlkem_SOURCES = test/unit/mu-mlkem.c \
+    test/helper/cmocka_all.h
+
+test_unit_mu_mldsa_CFLAGS  = $(CMOCKA_CFLAGS) $(TESTS_CFLAGS)
+test_unit_mu_mldsa_LDADD   = $(CMOCKA_LIBS) $(libtss2_mu)
+test_unit_mu_mldsa_SOURCES = test/unit/mu-mldsa.c \
+    test/helper/cmocka_all.h
+
+test_unit_sys_pqc_prepare_CFLAGS  = $(CMOCKA_CFLAGS) $(TESTS_CFLAGS)
+test_unit_sys_pqc_prepare_LDADD   = $(CMOCKA_LIBS) $(libtss2_mu) $(libtss2_sys)
+test_unit_sys_pqc_prepare_SOURCES = test/unit/sys-pqc-prepare.c \
+    src/tss2-sys/sysapi_util.c src/util/log.c test/helper/cmocka_all.h
+
 test_unit_sys_execute_CFLAGS  = $(CMOCKA_CFLAGS) $(TESTS_CFLAGS)
 test_unit_sys_execute_LDADD   = $(CMOCKA_LIBS) $(libtss2_mu) $(libtss2_sys)
 test_unit_sys_execute_SOURCES = test/unit/sys-execute.c \
@@ -868,7 +902,7 @@ test_unit_esys_crypto_SOURCES = test/unit/esys-crypto.c \
                                 src/tss2-esys/esys_iutil.c \
                                 src/tss2-esys/esys_crypto.c \
                                 $(TSS2_ESYS_SRC_CRYPTO) \
-                                test/helper/cmocka_all.h
+                                     test/helper/cmocka_all.h
 
 if VENDOR
 test_unit_esys_vendor_CFLAGS = $(CMOCKA_CFLAGS) $(TESTS_CFLAGS) $(TSS2_ESYS_CFLAGS_CRYPTO)
@@ -904,6 +938,26 @@ test_unit_fapi_json_SOURCES = test/unit/fapi-json.c \
                               src/tss2-fapi/ifapi_keystore.c  \
                               src/tss2-fapi/ifapi_io.c \
                               test/helper/cmocka_all.h
+
+test_unit_fapi_json_pqc_CFLAGS = $(CMOCKA_CFLAGS) $(JSONC_CFLAGS) $(TESTS_CFLAGS)
+test_unit_fapi_json_pqc_LDADD = $(CMOCKA_LIBS)  $(TESTS_LDADD)
+test_unit_fapi_json_pqc_LDFLAGS = $(TESTS_LDFLAGS)  $(CURL_LIBS) $(JSONC_LIBS) $(UUID_LIBS)
+test_unit_fapi_json_pqc_SOURCES = test/unit/fapi-json-pqc.c \
+                                  src/tss2-fapi/ifapi_json_deserialize.c \
+                                  src/tss2-fapi/ifapi_json_serialize.c \
+                                  src/tss2-fapi/ifapi_ima_eventlog.c \
+                                  src/tss2-fapi/ifapi_eventlog_system.c \
+                                  src/tss2-fapi/ifapi_json_eventlog_serialize.c \
+                                  src/tss2-fapi/ifapi_policy_json_deserialize.c \
+                                  src/tss2-fapi/ifapi_policy_json_serialize.c \
+                                  src/tss2-fapi/tpm_json_deserialize.c \
+                                  src/tss2-fapi/tpm_json_serialize.c \
+                                  src/tss2-fapi/ifapi_helpers.c \
+                                  src/tss2-fapi/fapi_crypto.c \
+                                  src/tss2-fapi/ifapi_eventlog.c \
+                                  src/tss2-fapi/ifapi_keystore.c  \
+                                  src/tss2-fapi/ifapi_io.c \
+                                  test/helper/cmocka_all.h
 
 test_unit_fapi_helpers_CFLAGS = $(CMOCKA_CFLAGS) $(JSONC_CFLAGS) $(TESTS_CFLAGS)
 test_unit_fapi_helpers_LDADD = $(CMOCKA_LIBS)  $(TESTS_LDADD)
@@ -1287,6 +1341,27 @@ test_integration_sys_ecc_encrypt_decrypt_int_CFLAGS  = $(AM_CFLAGS) $(TESTS_CFLA
 test_integration_sys_ecc_encrypt_decrypt_int_LDADD   = $(TESTS_LDADD)
 test_integration_sys_ecc_encrypt_decrypt_int_SOURCES = \
     test/integration/sys-ecc-encrypt-decrypt.int.c test/integration/main-sys.c
+
+test_integration_sys_encapsulate_int_CFLAGS  = $(AM_CFLAGS) $(TESTS_CFLAGS)
+test_integration_sys_encapsulate_int_LDADD   = $(TESTS_LDADD)
+test_integration_sys_encapsulate_int_SOURCES = \
+    test/integration/sys-encapsulate.int.c \
+    test/integration/pqc-fwtpm-helpers.c \
+    test/integration/main-sys.c
+
+test_integration_sys_sign_digest_int_CFLAGS  = $(AM_CFLAGS) $(TESTS_CFLAGS)
+test_integration_sys_sign_digest_int_LDADD   = $(TESTS_LDADD)
+test_integration_sys_sign_digest_int_SOURCES = \
+    test/integration/sys-sign-digest.int.c \
+    test/integration/pqc-fwtpm-helpers.c \
+    test/integration/main-sys.c
+
+test_integration_sys_sign_sequence_int_CFLAGS  = $(AM_CFLAGS) $(TESTS_CFLAGS)
+test_integration_sys_sign_sequence_int_LDADD   = $(TESTS_LDADD)
+test_integration_sys_sign_sequence_int_SOURCES = \
+    test/integration/sys-sign-sequence.int.c \
+    test/integration/pqc-fwtpm-helpers.c \
+    test/integration/main-sys.c
 
 if ESYS
 ESYS_SRC_UTIL_CRYPTO_SRC = src/tss2-esys/esys_iutil.c \
@@ -2041,6 +2116,70 @@ test_integration_esys_verify_signature_int_SOURCES = \
     test/integration/esys-verify-signature.int.c \
     test/integration/main-esys.c test/integration/test-esys.h
 
+test_integration_esys_encapsulate_int_CFLAGS  = $(TESTS_CFLAGS)
+test_integration_esys_encapsulate_int_LDADD   = $(TESTS_LDADD)
+test_integration_esys_encapsulate_int_LDFLAGS = $(TESTS_LDFLAGS)
+test_integration_esys_encapsulate_int_SOURCES = \
+    test/integration/esys-encapsulate.int.c \
+    test/integration/pqc-fwtpm-helpers.c \
+    test/integration/main-esys.c test/integration/test-esys.h
+
+test_integration_esys_sign_digest_int_CFLAGS  = $(TESTS_CFLAGS)
+test_integration_esys_sign_digest_int_LDADD   = $(TESTS_LDADD)
+test_integration_esys_sign_digest_int_LDFLAGS = $(TESTS_LDFLAGS)
+test_integration_esys_sign_digest_int_SOURCES = \
+    test/integration/esys-sign-digest.int.c \
+    test/integration/pqc-fwtpm-helpers.c \
+    test/integration/main-esys.c test/integration/test-esys.h
+
+test_integration_esys_sign_sequence_int_CFLAGS  = $(TESTS_CFLAGS)
+test_integration_esys_sign_sequence_int_LDADD   = $(TESTS_LDADD)
+test_integration_esys_sign_sequence_int_LDFLAGS = $(TESTS_LDFLAGS)
+test_integration_esys_sign_sequence_int_SOURCES = \
+    test/integration/esys-sign-sequence.int.c \
+    test/integration/pqc-fwtpm-helpers.c \
+    test/integration/main-esys.c test/integration/test-esys.h
+
+test_integration_esys_sign_deprecated_int_CFLAGS  = $(TESTS_CFLAGS)
+test_integration_esys_sign_deprecated_int_LDADD   = $(TESTS_LDADD)
+test_integration_esys_sign_deprecated_int_LDFLAGS = $(TESTS_LDFLAGS)
+test_integration_esys_sign_deprecated_int_SOURCES = \
+    test/integration/esys-sign-deprecated.int.c \
+    test/integration/pqc-fwtpm-helpers.c \
+    test/integration/main-esys.c test/integration/test-esys.h
+
+test_integration_esys_get_capability_pqc_int_CFLAGS  = $(TESTS_CFLAGS)
+test_integration_esys_get_capability_pqc_int_LDADD   = $(TESTS_LDADD)
+test_integration_esys_get_capability_pqc_int_LDFLAGS = $(TESTS_LDFLAGS)
+test_integration_esys_get_capability_pqc_int_SOURCES = \
+    test/integration/esys-get-capability-pqc.int.c \
+    test/integration/pqc-fwtpm-helpers.c \
+    test/integration/main-esys.c test/integration/test-esys.h
+
+test_integration_esys_mldsa87_buffer_int_CFLAGS  = $(TESTS_CFLAGS)
+test_integration_esys_mldsa87_buffer_int_LDADD   = $(TESTS_LDADD)
+test_integration_esys_mldsa87_buffer_int_LDFLAGS = $(TESTS_LDFLAGS)
+test_integration_esys_mldsa87_buffer_int_SOURCES = \
+    test/integration/esys-mldsa87-buffer.int.c \
+    test/integration/pqc-fwtpm-helpers.c \
+    test/integration/main-esys.c test/integration/test-esys.h
+
+test_integration_esys_quote_mldsa_int_CFLAGS  = $(TESTS_CFLAGS)
+test_integration_esys_quote_mldsa_int_LDADD   = $(TESTS_LDADD)
+test_integration_esys_quote_mldsa_int_LDFLAGS = $(TESTS_LDFLAGS)
+test_integration_esys_quote_mldsa_int_SOURCES = \
+    test/integration/esys-quote-mldsa.int.c \
+    test/integration/pqc-fwtpm-helpers.c \
+    test/integration/main-esys.c test/integration/test-esys.h
+
+test_integration_esys_mlkem_session_int_CFLAGS  = $(TESTS_CFLAGS)
+test_integration_esys_mlkem_session_int_LDADD   = $(TESTS_LDADD)
+test_integration_esys_mlkem_session_int_LDFLAGS = $(TESTS_LDFLAGS)
+test_integration_esys_mlkem_session_int_SOURCES = \
+    test/integration/esys-mlkem-session.int.c \
+    test/integration/pqc-fwtpm-helpers.c \
+    test/integration/main-esys.c test/integration/test-esys.h
+
 test_integration_esys_zgen_2phase_int_CFLAGS = $(TESTS_CFLAGS)
 test_integration_esys_zgen_2phase_int_LDADD = $(TESTS_LDADD)
 test_integration_esys_zgen_2phase_int_LDFLAGS = $(TESTS_LDFLAGS)
@@ -2140,6 +2279,42 @@ test_integration_fapi_key_create_sign_fint_LDADD   = $(TESTS_LDADD)
 test_integration_fapi_key_create_sign_fint_LDFLAGS = $(TESTS_LDFLAGS)
 test_integration_fapi_key_create_sign_fint_SOURCES = \
     test/integration/fapi-key-create-sign.int.c \
+    test/integration/main-fapi.c test/integration/test-fapi.h
+
+test_integration_fapi_key_create_mldsa_fint_CFLAGS  = $(JSONC_CFLAGS) $(TESTS_CFLAGS) \
+    -DFAPI_PROFILE=\"P_MLDSA\" -DFAPI_TEST_EK_CERT_LESS
+test_integration_fapi_key_create_mldsa_fint_LDADD   = $(TESTS_LDADD)
+test_integration_fapi_key_create_mldsa_fint_LDFLAGS = $(TESTS_LDFLAGS)
+test_integration_fapi_key_create_mldsa_fint_SOURCES = \
+    test/integration/fapi-key-create-mldsa.int.c \
+    test/integration/pqc-fwtpm-helpers.c \
+    test/integration/main-fapi.c test/integration/test-fapi.h
+
+test_integration_fapi_key_create_mldsa_sequence_fint_CFLAGS  = $(JSONC_CFLAGS) $(TESTS_CFLAGS) \
+    -DFAPI_PROFILE=\"P_MLDSA_SIGN\" -DFAPI_TEST_EK_CERT_LESS
+test_integration_fapi_key_create_mldsa_sequence_fint_LDADD   = $(TESTS_LDADD)
+test_integration_fapi_key_create_mldsa_sequence_fint_LDFLAGS = $(TESTS_LDFLAGS)
+test_integration_fapi_key_create_mldsa_sequence_fint_SOURCES = \
+    test/integration/fapi-key-create-mldsa-sequence.int.c \
+    test/integration/pqc-fwtpm-helpers.c \
+    test/integration/main-fapi.c test/integration/test-fapi.h
+
+test_integration_fapi_key_create_mlkem_fint_CFLAGS  = $(JSONC_CFLAGS) $(TESTS_CFLAGS) \
+    -DFAPI_PROFILE=\"P_MLKEM\" -DFAPI_TEST_EK_CERT_LESS
+test_integration_fapi_key_create_mlkem_fint_LDADD   = $(TESTS_LDADD)
+test_integration_fapi_key_create_mlkem_fint_LDFLAGS = $(TESTS_LDFLAGS)
+test_integration_fapi_key_create_mlkem_fint_SOURCES = \
+    test/integration/fapi-key-create-mlkem.int.c \
+    test/integration/pqc-fwtpm-helpers.c \
+    test/integration/main-fapi.c test/integration/test-fapi.h
+
+test_integration_fapi_quote_mldsa_fint_CFLAGS  = $(JSONC_CFLAGS) $(TESTS_CFLAGS) \
+    -DFAPI_PROFILE=\"P_MLDSA_SIGN\" -DFAPI_TEST_EK_CERT_LESS
+test_integration_fapi_quote_mldsa_fint_LDADD   = $(TESTS_LDADD)
+test_integration_fapi_quote_mldsa_fint_LDFLAGS = $(TESTS_LDFLAGS)
+test_integration_fapi_quote_mldsa_fint_SOURCES = \
+    test/integration/fapi-quote-mldsa.int.c \
+    test/integration/pqc-fwtpm-helpers.c \
     test/integration/main-fapi.c test/integration/test-fapi.h
 
 test_integration_fapi_key_create_he_sign_fint_CFLAGS  = $(JSONC_CFLAGS) $(TESTS_CFLAGS)
@@ -2749,6 +2924,7 @@ test_integration_policy_execute_int_SOURCES = \
     test/integration/policy-execute.int.c \
     test/integration/main-esys.c src/util/log.c \
     test/integration/test-esys.h test/data/test-fapi-policies.h
+
 endif # ESYS
 endif # POLICY
 

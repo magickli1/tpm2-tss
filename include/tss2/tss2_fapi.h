@@ -281,6 +281,36 @@ TSS2_RC Fapi_Decrypt_Async(FAPI_CONTEXT  *context,
 
 TSS2_RC Fapi_Decrypt_Finish(FAPI_CONTEXT *context, uint8_t **plainText, size_t *plainTextSize);
 
+TSS2_RC Fapi_Encapsulate(FAPI_CONTEXT *context,
+                         char const   *keyPath,
+                         uint8_t     **sharedSecret,
+                         size_t       *sharedSecretSize,
+                         uint8_t     **cipherText,
+                         size_t       *cipherTextSize);
+
+TSS2_RC Fapi_Encapsulate_Async(FAPI_CONTEXT *context, char const *keyPath);
+
+TSS2_RC Fapi_Encapsulate_Finish(FAPI_CONTEXT *context,
+                                uint8_t     **sharedSecret,
+                                size_t       *sharedSecretSize,
+                                uint8_t     **cipherText,
+                                size_t       *cipherTextSize);
+
+TSS2_RC Fapi_Decapsulate(FAPI_CONTEXT  *context,
+                         char const    *keyPath,
+                         uint8_t const *cipherText,
+                         size_t         cipherTextSize,
+                         uint8_t      **sharedSecret,
+                         size_t        *sharedSecretSize);
+
+TSS2_RC Fapi_Decapsulate_Async(FAPI_CONTEXT  *context,
+                               char const    *keyPath,
+                               uint8_t const *cipherText,
+                               size_t         cipherTextSize);
+
+TSS2_RC
+Fapi_Decapsulate_Finish(FAPI_CONTEXT *context, uint8_t **sharedSecret, size_t *sharedSecretSize);
+
 TSS2_RC Fapi_SetCertificate(FAPI_CONTEXT *context, char const *path, char const *x509certData);
 
 TSS2_RC

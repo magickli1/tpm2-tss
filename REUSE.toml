@@ -122,6 +122,18 @@ SPDX-FileCopyrightText = "2022 Jürgen Repp"
 SPDX-License-Identifier = "CC-BY-4.0"
 
 [[annotations]]
+path = "test/integration/pqc-fwtpm/README.md"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 tpm2-tss contributors"
+SPDX-License-Identifier = "CC-BY-4.0"
+
+[[annotations]]
+path = "test/integration/pqc-fwtpm/run-fwtpm-tests.sh"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 tpm2-tss contributors"
+SPDX-License-Identifier = "BSD-2-Clause"
+
+[[annotations]]
 path = "sphinx/requirements.txt"
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2024 Jürgen Repp"
